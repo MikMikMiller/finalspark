@@ -5,6 +5,11 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "serve": "python3 -m http.server 4173"
+    "serve": "python3 -m http.server 4173",
+    "framer:deploy": "node scripts/deploy-framer.mjs",
+    "framer:publish": "node scripts/deploy-framer.mjs --publish"
+  },
+  "devDependencies": {
+    "framer-api": "^0.1.12"
   }
 }
