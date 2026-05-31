@@ -81,6 +81,8 @@ const RASTER_WINDOW_MS = 12000
 const TIMELINE_POINTS = 44
 const SOCKET_IO_URL =
     "wss://livemeaservice.finalspark.com/socket.io/?EIO=4&transport=websocket"
+const NEUROPLATFORM_IMAGE =
+    "https://finalspark.com/wp-content/themes/divi-creative-agency/images/bioprocessor-panel.png"
 
 const SOURCE_LABEL: Record<SourceMode, string> = {
     live: "Live",
@@ -237,10 +239,20 @@ export default function FinalSparkLiveViz(props: Props) {
                         <h1>{title}</h1>
                         <p className="fs-viz__subtitle">{subtitle}</p>
                     </div>
-                    <div className="fs-viz__status" aria-live="polite">
-                        <span>Stream status</span>
-                        <strong>{sampleMeta}</strong>
-                        <small>{view.status[0]?.message ?? "No socket activity yet."}</small>
+                    <div className="fs-viz__header-aside">
+                        <div className="fs-viz__status" aria-live="polite">
+                            <span>Stream status</span>
+                            <strong>{sampleMeta}</strong>
+                            <small>{view.status[0]?.message ?? "No socket activity yet."}</small>
+                        </div>
+                        <figure className="fs-viz__media">
+                            <img
+                                src={NEUROPLATFORM_IMAGE}
+                                alt="FinalSpark bioprocessor visual"
+                                loading="lazy"
+                            />
+                            <figcaption>Neuroplatform context</figcaption>
+                        </figure>
                     </div>
                 </header>
 
@@ -1459,6 +1471,12 @@ const styles = `
     font-size: 16px;
     line-height: 1.5;
 }
+.fs-viz__header-aside {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 112px;
+    gap: 12px;
+    align-items: stretch;
+}
 .fs-viz__status {
     display: grid;
     gap: 6px;
@@ -1484,6 +1502,27 @@ const styles = `
     color: #66716b;
     font-size: 12px;
     line-height: 1.35;
+}
+.fs-viz__media {
+    display: grid;
+    place-items: center;
+    min-height: 112px;
+    margin: 0;
+    padding: 10px 8px 8px;
+    border: 1px solid #d9e0d8;
+    border-radius: 12px;
+    background: #eef7f4;
+}
+.fs-viz__media img {
+    width: 82px;
+    height: 82px;
+    object-fit: contain;
+}
+.fs-viz__media figcaption {
+    color: #66716b;
+    font-size: 10px;
+    line-height: 1.2;
+    text-align: center;
 }
 .fs-viz__toolbar {
     display: grid;
@@ -1679,6 +1718,9 @@ const styles = `
     .fs-viz__panel p {
         text-align: left;
     }
+    .fs-viz__header-aside {
+        grid-template-columns: minmax(0, 1fr) 112px;
+    }
 }
 @media (max-width: 520px) {
     .fs-viz__shell {
@@ -1701,6 +1743,12 @@ const styles = `
     }
     .fs-viz__segmented {
         width: 100%;
+    }
+    .fs-viz__header-aside {
+        grid-template-columns: 1fr;
+    }
+    .fs-viz__media {
+        display: none;
     }
     .fs-viz__canvas--raster {
         height: 360px;
