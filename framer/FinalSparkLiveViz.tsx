@@ -114,8 +114,8 @@ const EMPTY_VIEW_STATE: ViewState = {
 export default function FinalSparkLiveViz(props: Props) {
     const {
         style,
-        title = "FinalSpark Live MEA",
-        subtitle = "A browser-based view of public multi-electrode-array voltage windows from FinalSpark, rendered with threshold crossings, population activity, and center-of-activity summaries.",
+        title = "Live MEA Signal Explorer",
+        subtitle = "128-electrode voltage windows decoded into threshold crossings, raster activity, heatmaps, and center-of-activity movement.",
         preferredSource = "live",
         thresholdUv: initialThreshold = 80,
         voltageRangeUv: initialRange = 160,
@@ -233,7 +233,7 @@ export default function FinalSparkLiveViz(props: Props) {
             <div className="fs-viz__shell">
                 <header className="fs-viz__header">
                     <div className="fs-viz__intro">
-                        <p className="fs-viz__eyebrow">Public FinalSpark stream</p>
+                        <p className="fs-viz__eyebrow">Public MEA stream</p>
                         <h1>{title}</h1>
                         <p className="fs-viz__subtitle">{subtitle}</p>
                     </div>
@@ -1398,6 +1398,8 @@ const styles = `
 .fs-viz {
     width: 100%;
     min-width: 320px;
+    padding-top: 78px;
+    scroll-margin-top: 78px;
     color: #202722;
     font-family: Avenir Next, Aptos, Segoe UI, system-ui, sans-serif;
     letter-spacing: 0;

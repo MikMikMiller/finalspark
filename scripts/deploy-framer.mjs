@@ -97,9 +97,9 @@ async function upsertPrimaryInstance(framer, insertURL, replayAsset) {
       voltageRangeUv: 160,
       replayFile: replayAsset,
       replayUrl: "",
-      title: "FinalSpark Live MEA",
+      title: "Live MEA Signal Explorer",
       subtitle:
-        "Public FinalSpark voltage windows rendered as threshold crossings, electrode activity, and center-of-activity summaries.",
+        "128-electrode voltage windows decoded into threshold crossings, raster activity, heatmaps, and center-of-activity movement.",
     },
   }
 
@@ -136,6 +136,11 @@ async function rebrandTemplate(framer) {
   const replacements = new Map([
     ["Alytics", "FinalSpark Live"],
     ["Alytics template adapted for FinalSpark live data", "Template adapted for FinalSpark live data"],
+    ["FinalSpark Live MEA", "Live MEA Signal Explorer"],
+    [
+      "Public FinalSpark voltage windows rendered as threshold crossings, electrode activity, and center-of-activity summaries.",
+      "128-electrode voltage windows decoded into threshold crossings, raster activity, heatmaps, and center-of-activity movement.",
+    ],
     ["Trusted by 1M+ users", "Live public MEA data"],
     ["Turn scattered data into smart decisions", "Watch FinalSpark MEA voltage streams in real time"],
     [
@@ -149,7 +154,8 @@ async function rebrandTemplate(framer) {
     ["Integrations", "Signals"],
     ["Pricing", "Replay"],
     ["Blogs", "Notes"],
-    ["Get Started", "Open Live"],
+    ["Open Live", "Open Explorer"],
+    ["Get Started", "Open Explorer"],
     ["Template by Asad Khaleel", "Template adapted for FinalSpark live data"],
     ["Built in Framer . © 2024 Alytics", "FinalSpark Live Visualizer . 2026"],
     ["Subscribe to the Alytics Newsletter!", "Follow the live MEA signal"],
@@ -173,16 +179,26 @@ async function rebrandTemplate(framer) {
   const componentNodes = await framer.getNodesWithType("ComponentInstanceNode")
   let componentUpdates = 0
   const navLinks = new Map([
-    ["Features", "Live"],
-    ["Benefits", "Methods"],
+    ["Features", "Explorer"],
+    ["Live", "Explorer"],
+    ["Explorer", "Explorer"],
+    ["Benefits", "Protocol"],
+    ["Methods", "Protocol"],
+    ["Protocol", "Protocol"],
     ["Integrations", "Signals"],
+    ["Signals", "Signals"],
     ["Pricing", "Replay"],
+    ["Replay", "Replay"],
     ["FAQ", "Status"],
+    ["Status", "Status"],
     ["Blogs", "Notes"],
+    ["Notes", "Notes"],
   ])
   for (const node of componentNodes) {
     const controls = node.controls || {}
     if (
+      node.name === "Footer" ||
+      node.componentName === "Footer" ||
       node.name === "Buy Template - Dark" ||
       node.componentName === "Buy Template - Dark" ||
       node.name === "New Template" ||
@@ -200,12 +216,12 @@ async function rebrandTemplate(framer) {
     if (
       node.componentName === "Button" &&
       typeof controls.hKzSQEl_0 === "string" &&
-      /Get Template|Get Started|Subscribe|Open Live/.test(controls.hKzSQEl_0)
+      /Get Template|Get Started|Subscribe|Open Live|Open Explorer/.test(controls.hKzSQEl_0)
     ) {
       await framer.setAttributes(node.id, {
         controls: {
           ...controls,
-          hKzSQEl_0: "Open Live",
+          hKzSQEl_0: "Open Explorer",
           e5w0UxZNt: "#finalspark-live",
           VEpndFiaz: false,
         },
@@ -231,6 +247,7 @@ async function rebrandTemplate(framer) {
 
   const frames = await framer.getNodesWithType("FrameNode")
   const obsoleteSectionNames = new Set([
+    "Hero",
     "Dashboard",
     "Features",
     "Benefits",
