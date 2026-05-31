@@ -97,9 +97,8 @@ async function upsertPrimaryInstance(framer, insertURL, replayAsset) {
       voltageRangeUv: 160,
       replayFile: replayAsset,
       replayUrl: "",
-      title: "Live MEA Signal Explorer",
-      subtitle:
-        "128-electrode voltage windows decoded into threshold crossings, raster activity, heatmaps, and center-of-activity movement.",
+      title: "MEA Signal Explorer",
+      subtitle: "Live 128-electrode voltage windows with raster, heatmap, and activity summaries.",
     },
   }
 
@@ -137,9 +136,14 @@ async function rebrandTemplate(framer) {
     ["Alytics", "FinalSpark Live"],
     ["Alytics template adapted for FinalSpark live data", "Template adapted for FinalSpark live data"],
     ["FinalSpark Live MEA", "Live MEA Signal Explorer"],
+    ["Live MEA Signal Explorer", "MEA Signal Explorer"],
     [
       "Public FinalSpark voltage windows rendered as threshold crossings, electrode activity, and center-of-activity summaries.",
       "128-electrode voltage windows decoded into threshold crossings, raster activity, heatmaps, and center-of-activity movement.",
+    ],
+    [
+      "128-electrode voltage windows decoded into threshold crossings, raster activity, heatmaps, and center-of-activity movement.",
+      "Live 128-electrode voltage windows with raster, heatmap, and activity summaries.",
     ],
     ["Trusted by 1M+ users", "Live public MEA data"],
     ["Turn scattered data into smart decisions", "Watch FinalSpark MEA voltage streams in real time"],
@@ -199,6 +203,8 @@ async function rebrandTemplate(framer) {
     if (
       node.name === "Footer" ||
       node.componentName === "Footer" ||
+      node.name === "Navbar" ||
+      node.componentName === "Navbar" ||
       node.name === "Buy Template - Dark" ||
       node.componentName === "Buy Template - Dark" ||
       node.name === "New Template" ||

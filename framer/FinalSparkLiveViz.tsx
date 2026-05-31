@@ -116,8 +116,8 @@ const EMPTY_VIEW_STATE: ViewState = {
 export default function FinalSparkLiveViz(props: Props) {
     const {
         style,
-        title = "Live MEA Signal Explorer",
-        subtitle = "128-electrode voltage windows decoded into threshold crossings, raster activity, heatmaps, and center-of-activity movement.",
+        title = "MEA Signal Explorer",
+        subtitle = "Live 128-electrode voltage windows with raster, heatmap, and activity summaries.",
         preferredSource = "live",
         thresholdUv: initialThreshold = 80,
         voltageRangeUv: initialRange = 160,
@@ -235,7 +235,7 @@ export default function FinalSparkLiveViz(props: Props) {
             <div className="fs-viz__shell">
                 <header className="fs-viz__header">
                     <div className="fs-viz__intro">
-                        <p className="fs-viz__eyebrow">Public MEA stream</p>
+                        <p className="fs-viz__eyebrow">FinalSpark public stream</p>
                         <h1>{title}</h1>
                         <p className="fs-viz__subtitle">{subtitle}</p>
                     </div>
@@ -249,6 +249,8 @@ export default function FinalSparkLiveViz(props: Props) {
                             <img
                                 src={NEUROPLATFORM_IMAGE}
                                 alt="FinalSpark bioprocessor visual"
+                                width={82}
+                                height={82}
                                 loading="lazy"
                             />
                             <figcaption>Neuroplatform context</figcaption>
@@ -1410,10 +1412,9 @@ const styles = `
 .fs-viz {
     width: 100%;
     min-width: 320px;
-    padding-top: 78px;
-    scroll-margin-top: 78px;
+    scroll-margin-top: 16px;
     color: #202722;
-    font-family: Avenir Next, Aptos, Segoe UI, system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif;
     letter-spacing: 0;
     touch-action: manipulation;
 }
@@ -1434,15 +1435,15 @@ const styles = `
 .fs-viz__shell {
     overflow: hidden;
     border: 1px solid #d9e0d8;
-    border-radius: 20px;
+    border-radius: 16px;
     background: #f7f9f2;
 }
 .fs-viz__header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
-    gap: 24px;
-    align-items: end;
-    padding: 30px 30px 20px;
+    gap: 20px;
+    align-items: center;
+    padding: 24px 30px 18px;
     border-bottom: 1px solid #dfe5de;
     background: #fffef7;
 }
@@ -1458,18 +1459,19 @@ const styles = `
     margin: 0;
 }
 .fs-viz h1 {
-    max-width: 820px;
-    font-size: 56px;
-    line-height: 0.98;
+    max-width: 680px;
+    font-size: 44px;
+    font-weight: 750;
+    line-height: 1.04;
     letter-spacing: 0;
     text-wrap: balance;
 }
 .fs-viz__subtitle {
-    max-width: 820px;
-    margin-top: 12px;
+    max-width: 640px;
+    margin-top: 8px;
     color: #66716b;
-    font-size: 16px;
-    line-height: 1.5;
+    font-size: 15px;
+    line-height: 1.45;
 }
 .fs-viz__header-aside {
     display: grid;
@@ -1557,6 +1559,13 @@ const styles = `
 .fs-viz__segmented button[data-active="true"] {
     background: #202722;
     color: #fffef7;
+}
+.fs-viz__segmented button:hover,
+.fs-viz__button:hover {
+    background: #eef7f4;
+}
+.fs-viz__segmented button[data-active="true"]:hover {
+    background: #202722;
 }
 .fs-viz__control,
 .fs-viz__select,
@@ -1709,8 +1718,8 @@ const styles = `
         padding-right: 18px;
     }
     .fs-viz h1 {
-        font-size: 42px;
-        line-height: 1;
+        font-size: 38px;
+        line-height: 1.05;
     }
     .fs-viz__panel-head {
         display: grid;
@@ -1727,7 +1736,7 @@ const styles = `
         border-radius: 16px;
     }
     .fs-viz h1 {
-        font-size: 34px;
+        font-size: 32px;
     }
     .fs-viz__subtitle {
         font-size: 14px;
