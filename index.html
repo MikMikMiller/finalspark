@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FinalSpark Public Live Activity Dashboard</title>
+    <meta name="theme-color" content="#f7f8f2">
+    <meta
+      name="description"
+      content="A zero-build browser dashboard for the public FinalSpark live stream, with replay and demo modes."
+    >
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#app">Skip to dashboard</a>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Public stream visualizer</p>
+        <h1>FinalSpark Live Activity Dashboard</h1>
+        <p class="lede">
+          A zero-build browser view over the public LiveMEA stream: threshold crossings, firing-rate heatmaps,
+          activity timeline, and a transparent mapping layer.
+        </p>
+      </div>
+      <div class="source-switch" aria-label="Data source">
+        <button type="button" data-source="live" class="is-active" aria-pressed="true">Live</button>
+        <button type="button" data-source="replay" aria-pressed="false">Replay</button>
+        <button type="button" data-source="demo" aria-pressed="false">Demo</button>
+      </div>
+    </header>
+
+    <main class="app-shell" id="app">
+      <section class="control-strip" aria-label="Controls">
+        <label>
+          Threshold
+          <input id="threshold" name="thresholdUv" type="range" min="10" max="500" step="5" value="50" autocomplete="off">
+          <span id="thresholdValue">50 uV</span>
+        </label>
+        <label>
+          Trace range
+          <select id="range" name="traceRangeUv" autocomplete="off"></select>
+        </label>
+        <label class="check-row">
+          <input id="absoluteIndex" name="absoluteIndex" type="checkbox" autocomplete="off">
+          Absolute index
+        </label>
+        <button type="button" id="pause">Pause</button>
+        <button type="button" id="clear">Clear</button>
+        <div class="status-box">
+          <strong>Source status</strong>
+          <pre id="sourceStatus" data-level="info" aria-live="polite">Starting</pre>
+        </div>
+      </section>
+
+      <section class="metric-row" aria-label="Live metrics">
+        <div class="metric"><span>Sample</span><strong id="sampleMeta">Waiting for data</strong></div>
+        <div class="metric"><span>Population rate</span><strong id="populationRate">0 Hz</strong></div>
+        <div class="metric"><span>Active channels</span><strong id="activeChannels">0</strong></div>
+        <div class="metric"><span>Crossings</span><strong id="totalCrossings">0</strong></div>
+        <div class="metric"><span>Sample rate</span><strong id="sampleRate">3750.8 Hz</strong></div>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <h2>Live Raster</h2>
+              <p>Each tick is a client-side threshold crossing, not an assigned neuron identity.</p>
+            </div>
+          </div>
+          <canvas id="rasterCanvas" height="460"></canvas>
+        </article>
+
+        <article class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <h2>Firing-Rate Heatmap</h2>
+              <p>Logical electrode layout by index across four MEAs. No anatomical regions are inferred.</p>
+            </div>
+          </div>
+          <canvas id="heatmapCanvas" height="320"></canvas>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Activity Timeline</h2>
+              <p>Population crossings per second across currently available channels.</p>
+            </div>
+          </div>
+          <canvas id="timelineCanvas" height="250"></canvas>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Center of Activity</h2>
+              <p>A weighted average electrode position from crossing counts.</p>
+            </div>
+          </div>
+          <canvas id="centerCanvas" height="250"></canvas>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Signals vs Noise</h2>
+              <p>The shaded band is the current threshold. Crossings outside it are counted.</p>
+            </div>
+          </div>
+          <canvas id="signalCanvas" height="250"></canvas>
+          <p id="noiseSummary" class="microcopy">Waiting for a probe channel.</p>
+        </article>
+
+        <article class="panel explain-panel">
+          <div class="panel-header">
+            <div>
+              <h2>What Am I Looking At?</h2>
+              <p>Short context for reading the public stream.</p>
+            </div>
+          </div>
+          <dl class="explain-list">
+            <div>
+              <dt>MEA</dt>
+              <dd>A multi-electrode array. This dashboard shows 4 MEAs, 32 electrodes each.</dd>
+            </div>
+            <div>
+              <dt>Biochip</dt>
+              <dd>Each MEA is grouped into four logical 8-electrode biochips.</dd>
+            </div>
+            <div>
+              <dt>Window</dt>
+              <dd>Each pushed frame contains 4096 samples, roughly 1092.3 ms of raw voltage.</dd>
+            </div>
+            <div>
+              <dt>Threshold</dt>
+              <dd>Crossings are simple voltage threshold events. No unit identity is inferred.</dd>
+            </div>
+            <div>
+              <dt>Center of Activity</dt>
+              <dd>A statistical average position weighted by crossing counts, not a biological region.</dd>
+            </div>
+          </dl>
+          <p id="mappingProbe" class="mapping-probe"></p>
+        </article>
+      </section>
+
+      <section class="mea-stat-grid" id="meaStats" aria-label="MEA stats"></section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        Public-stream-only learning project. It uses the same public LiveMEA data surface as the official live view,
+        with replay and demo modes so the dashboard remains inspectable without the upstream stream.
+      </p>
+    </footer>
+
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
