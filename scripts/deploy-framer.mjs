@@ -7,6 +7,11 @@ const COMPONENT_NAME = "FinalSparkLiveViz.tsx"
 const COMPONENT_PATH = new URL("../framer/FinalSparkLiveViz.tsx", import.meta.url)
 const REPLAY_PATH = new URL("../data/replay-sample.json", import.meta.url)
 const TOKEN_PATH = new URL("../codexframer.rtf", import.meta.url)
+const SITE_TITLE = "FinalSpark Live Activity Dashboard"
+const SITE_DESCRIPTION =
+  "Public LiveMEA windows with crossings, heatmaps, timeline, and electrode mapping."
+const DEFAULT_HEADLESS_SERVER_URL = "wss://api.framer.com/channel/headless-plugin"
+const PREFLIGHT_TIMEOUT_MS = 10_000
 
 const PRIMARY_TARGET = { name: "Desktop", parentId: "KyMiQ733k", height: "fit-content" }
 const REPLICA_TARGETS = [
@@ -15,17 +20,30 @@ const REPLICA_TARGETS = [
 ]
 
 const shouldPublish = process.argv.includes("--publish")
+const siteCodeOnly = process.argv.includes("--site-code-only")
 
 async function main() {
   const token = await readToken()
-  const source = await readFile(COMPONENT_PATH, "utf8")
-  const replayBytes = await readFile(REPLAY_PATH)
+  const connectionOptions = getConnectionOptions()
+
+  await assertFramerHeadlessReachable(connectionOptions?.serverUrl ?? DEFAULT_HEADLESS_SERVER_URL)
 
   let framer
   try {
-    framer = await connect(PROJECT_URL, token)
+    framer = await connect(PROJECT_URL, token, connectionOptions)
     const project = await framer.getProjectInfo()
     console.log(`Connected to ${project.name}`)
+
+    if (siteCodeOnly) {
+      await upsertSiteMetadata(framer)
+      const changed = await framer.getChangedPaths()
+      console.log(`Changed paths: ${JSON.stringify(changed)}`)
+      await publishIfRequested(framer)
+      return
+    }
+
+    const source = await readFile(COMPONENT_PATH, "utf8")
+    const replayBytes = await readFile(REPLAY_PATH)
 
     const diagnostics = await framer.typecheckCode(COMPONENT_NAME, source, {
       strict: false,
@@ -58,18 +76,89 @@ async function main() {
     await upsertPrimaryInstance(framer, componentExport.insertURL, replayAsset)
     await verifyReplicaInstances(framer)
     await rebrandTemplate(framer)
+    await upsertPageMetadata(framer)
+    await upsertSiteMetadata(framer)
     const changed = await framer.getChangedPaths()
     console.log(`Changed paths: ${JSON.stringify(changed)}`)
 
-    if (shouldPublish) {
-      const publish = await framer.publish()
-      console.log(`Publish: ${JSON.stringify(publish)}`)
-    } else {
-      console.log("Publish skipped. Re-run with --publish after inspection.")
-    }
+    await publishIfRequested(framer)
   } finally {
     if (framer) await framer.disconnect()
   }
+}
+
+async function publishIfRequested(framer) {
+  if (shouldPublish) {
+    const publish = await framer.publish()
+    console.log(`Publish: ${JSON.stringify(publish)}`)
+  } else {
+    console.log("Publish skipped. Re-run with --publish after inspection.")
+  }
+}
+
+function getConnectionOptions() {
+  const serverUrl = process.env.FRAMER_HEADLESS_SERVER_URL?.trim()
+  return serverUrl ? { serverUrl } : undefined
+}
+
+async function assertFramerHeadlessReachable(serverUrl) {
+  const probeUrl = toHttpProbeUrl(serverUrl)
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), PREFLIGHT_TIMEOUT_MS)
+
+  let response
+  let body = ""
+  try {
+    response = await fetch(probeUrl, {
+      headers: { accept: "application/json,text/plain,*/*" },
+      signal: controller.signal,
+    })
+    body = await response.text().catch(() => "")
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(
+        `Timed out checking Framer headless API at ${probeUrl}. Publishing needs this endpoint before it can update the Framer project.`
+      )
+    }
+    throw new Error(
+      `Cannot reach Framer headless API at ${probeUrl}: ${error instanceof Error ? error.message : String(error)}`
+    )
+  } finally {
+    clearTimeout(timeout)
+  }
+
+  if (response.status === 451 || isCloudFrontCountryBlock(response, body)) {
+    throw new Error(
+      [
+        `Framer headless API is blocked from this network: HTTP ${response.status}.`,
+        body ? `Response: ${summarizeBody(body)}` : null,
+        "The local Framer component is ready, but publishing cannot continue until api.framer.com is reachable.",
+        "Run this command from a network where Framer is not blocked, or set FRAMER_HEADLESS_SERVER_URL to a Framer-provided reachable endpoint.",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    )
+  }
+}
+
+function toHttpProbeUrl(serverUrl) {
+  const url = new URL(serverUrl)
+  if (url.protocol === "wss:") url.protocol = "https:"
+  if (url.protocol === "ws:") url.protocol = "http:"
+  return url.toString()
+}
+
+function isCloudFrontCountryBlock(response, body) {
+  const server = response.headers.get("server") ?? ""
+  return (
+    response.status === 403 &&
+    /cloudfront/i.test(server) &&
+    /configured to block access from your country|legal-reasons/i.test(body)
+  )
+}
+
+function summarizeBody(body) {
+  return body.replace(/\s+/g, " ").trim().slice(0, 240)
 }
 
 async function upsertCodeFile(framer, source) {
@@ -97,8 +186,8 @@ async function upsertPrimaryInstance(framer, insertURL, replayAsset) {
       voltageRangeUv: 160,
       replayFile: replayAsset,
       replayUrl: "",
-      title: "MEA Signal Explorer",
-      subtitle: "Live 128-electrode voltage windows with raster, heatmap, and activity summaries.",
+      title: "Live Activity Dashboard",
+      subtitle: "Public LiveMEA windows with crossings, heatmaps, timeline, and electrode mapping.",
     },
   }
 
@@ -280,6 +369,95 @@ async function rebrandTemplate(framer) {
   console.log(`Template rebrand: ${textUpdates} text updates, ${componentUpdates} component/frame updates`)
 }
 
+async function upsertPageMetadata(framer) {
+  const pages = await framer.getNodesWithType("WebPageNode")
+  const homePage = pages.find((page) => page.path === "/")
+  if (!homePage) {
+    throw new Error("Home page WebPageNode was not found")
+  }
+
+  await framer.applyAgentChanges(
+    [
+      `SET rootNode metadata.title="${escapeDsl(SITE_TITLE)}" metadata.description="${escapeDsl(SITE_DESCRIPTION)}"`,
+      `SET ${homePage.id} metadata.title="${escapeDsl(SITE_TITLE)}" metadata.description="${escapeDsl(SITE_DESCRIPTION)}" metadata.noIndex="false" metadata.noIndexSite="false"`,
+    ].join("; ") + ";",
+    { pagePath: "/" }
+  )
+  await framer.reviewChangesForAgent({ pagePath: "/" })
+  console.log(`Home page metadata ready: ${homePage.id}`)
+}
+
+async function upsertSiteMetadata(framer) {
+  const overlayCleanupScript = `(() => {
+  const hiddenSelectors = "#__framer-badge-container, #__framer-editorbar";
+  const hideFramerOverlays = () => {
+    for (const element of document.querySelectorAll(hiddenSelectors)) {
+      element.setAttribute("aria-hidden", "true");
+      element.style.setProperty("display", "none", "important");
+      element.style.setProperty("visibility", "hidden", "important");
+      element.style.setProperty("opacity", "0", "important");
+      element.style.setProperty("pointer-events", "none", "important");
+    }
+  };
+
+  try {
+    window.localStorage?.removeItem("__framer_force_showing_editorbar_since");
+  } catch {}
+
+  hideFramerOverlays();
+  new MutationObserver(hideFramerOverlays).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+})();`
+  const metadataScript = `(() => {
+  const title = ${JSON.stringify(SITE_TITLE)};
+  const description = ${JSON.stringify(SITE_DESCRIPTION)};
+  document.title = title;
+  const tags = [
+    ["name", "description", description],
+    ["property", "og:title", title],
+    ["property", "og:description", description],
+    ["name", "twitter:title", title],
+    ["name", "twitter:description", description],
+  ];
+  for (const [attribute, key, content] of tags) {
+    const matches = document.querySelectorAll(\`meta[\${attribute}="\${key}"]\`);
+    if (matches.length === 0) {
+      const element = document.createElement("meta");
+      element.setAttribute(attribute, key);
+      element.content = content;
+      document.head.appendChild(element);
+      continue;
+    }
+    for (const element of matches) element.content = content;
+  }
+})();`
+  await framer.setCustomCode({
+    location: "headEnd",
+    html: [
+      `<title>${escapeHtml(SITE_TITLE)}</title>`,
+      `<meta name="description" content="${escapeHtml(SITE_DESCRIPTION)}">`,
+      `<meta property="og:title" content="${escapeHtml(SITE_TITLE)}">`,
+      `<meta property="og:description" content="${escapeHtml(SITE_DESCRIPTION)}">`,
+      `<meta name="twitter:title" content="${escapeHtml(SITE_TITLE)}">`,
+      `<meta name="twitter:description" content="${escapeHtml(SITE_DESCRIPTION)}">`,
+      `<style data-finalspark-framer-overlay-cleanup>
+        #__framer-badge-container,
+        #__framer-editorbar {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+      </style>`,
+      `<script>${metadataScript}</script>`,
+      `<script>${overlayCleanupScript}</script>`,
+    ].join("\n"),
+  })
+  console.log("Site metadata custom code ready")
+}
+
 async function readToken() {
   if (process.env.FRAMER_API_KEY) return process.env.FRAMER_API_KEY.trim()
 
@@ -303,6 +481,18 @@ function formatDiagnostics(diagnostics) {
       return `${file}:${line}:${column} ${text}`
     })
     .join("\n")
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+}
+
+function escapeDsl(value) {
+  return String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')
 }
 
 main().catch((error) => {

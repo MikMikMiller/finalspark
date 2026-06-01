@@ -1,4 +1,4 @@
-import { SAMPLE_RATE_HZ, SAMPLE_WINDOW_MS } from "../config.js";
+import { SAMPLE_RATE_HZ, SAMPLE_WINDOW_MS } from "../config.js?v=20260601-perf";
 
 export function makeFrame({ source, meas, timestamp = new Date(), sampleRateHz, sampleWindowMs }) {
   const sorted = meas

@@ -17,10 +17,10 @@ export function prepareCanvas(canvas) {
 
 export function drawPanelFrame(ctx, width, height, label) {
   ctx.save();
-  ctx.strokeStyle = "#d8ddd7";
+  ctx.strokeStyle = "#d7dee7";
   ctx.lineWidth = 1;
   ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
-  ctx.fillStyle = "#66716b";
+  ctx.fillStyle = "#68717a";
   ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
   ctx.fillText(label, 12, 18);
   ctx.restore();
@@ -28,9 +28,9 @@ export function drawPanelFrame(ctx, width, height, label) {
 
 export function rateColor(value, maxValue) {
   const t = maxValue <= 0 ? 0 : Math.min(1, value / maxValue);
-  const cold = [235, 239, 232];
-  const mid = [37, 126, 111];
-  const hot = [198, 75, 45];
+  const cold = [236, 246, 255];
+  const mid = [46, 163, 242];
+  const hot = [235, 104, 23];
   const mix = t < 0.5
     ? lerpColor(cold, mid, t * 2)
     : lerpColor(mid, hot, (t - 0.5) * 2);
@@ -38,7 +38,7 @@ export function rateColor(value, maxValue) {
 }
 
 export function meaAccent(meaId) {
-  return ["#257e6f", "#aa6a1f", "#476a9f", "#b24c43"][meaId - 1] ?? "#444";
+  return ["#2ea3f2", "#eb6817", "#386ca3", "#b24c43"][meaId - 1] ?? "#444";
 }
 
 function lerpColor(a, b, t) {

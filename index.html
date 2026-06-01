@@ -4,61 +4,93 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FinalSpark Public Live Activity Dashboard</title>
-    <meta name="theme-color" content="#f7f8f2">
+    <meta name="theme-color" content="#f7f9fb">
     <meta
       name="description"
       content="A zero-build browser dashboard for the public FinalSpark live stream, with replay and demo modes."
     >
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20260601-perf">
   </head>
   <body>
     <a class="skip-link" href="#app">Skip to dashboard</a>
     <header class="topbar">
-      <div>
-        <p class="eyebrow">Public stream visualizer</p>
-        <h1>FinalSpark Live Activity Dashboard</h1>
-        <p class="lede">
-          A zero-build browser view over the public LiveMEA stream: threshold crossings, firing-rate heatmaps,
-          activity timeline, and a transparent mapping layer.
-        </p>
-      </div>
-      <div class="source-switch" aria-label="Data source">
-        <button type="button" data-source="live" class="is-active" aria-pressed="true">Live</button>
-        <button type="button" data-source="replay" aria-pressed="false">Replay</button>
-        <button type="button" data-source="demo" aria-pressed="false">Demo</button>
+      <div class="brand-lockup">
+        <img
+          class="brand-logo"
+          src="assets/finalspark-logo-white.svg"
+          alt="FinalSpark"
+          width="180"
+          height="40"
+          decoding="async"
+          fetchpriority="high"
+        >
+        <div class="topbar-copy">
+          <h1>Live Activity Dashboard</h1>
+          <p class="lede">
+            Public LiveMEA windows with crossings, heatmaps, timeline, and electrode mapping.
+          </p>
+        </div>
       </div>
     </header>
 
     <main class="app-shell" id="app">
       <section class="control-strip" aria-label="Controls">
-        <label>
-          Threshold
-          <input id="threshold" name="thresholdUv" type="range" min="10" max="500" step="5" value="50" autocomplete="off">
-          <span id="thresholdValue">50 uV</span>
-        </label>
-        <label>
-          Trace range
-          <select id="range" name="traceRangeUv" autocomplete="off"></select>
-        </label>
-        <label class="check-row">
-          <input id="absoluteIndex" name="absoluteIndex" type="checkbox" autocomplete="off">
-          Absolute index
-        </label>
-        <button type="button" id="pause">Pause</button>
-        <button type="button" id="clear">Clear</button>
-        <div class="status-box">
-          <strong>Source status</strong>
-          <pre id="sourceStatus" data-level="info" aria-live="polite">Starting</pre>
+        <div class="source-control">
+          <span>Source</span>
+          <div class="source-switch" aria-label="Data source">
+            <button type="button" data-source="live" class="is-active" aria-pressed="true">Live</button>
+            <button type="button" data-source="replay" aria-pressed="false">Replay</button>
+            <button type="button" data-source="demo" aria-pressed="false">Demo</button>
+          </div>
+        </div>
+        <details class="control-drawer" open>
+          <summary>
+            <span>Controls</span>
+            <small id="controlSummary">50 uV | +/-100 uV | Local labels</small>
+          </summary>
+          <div class="control-drawer-body">
+            <label class="control-field control-field-threshold">
+              Threshold
+              <input id="threshold" name="thresholdUv" type="range" min="10" max="500" step="5" value="50" autocomplete="off">
+              <span id="thresholdValue">50 uV</span>
+            </label>
+            <label class="control-field control-field-range">
+              Trace range
+              <select id="range" name="traceRangeUv" autocomplete="off"></select>
+            </label>
+            <label class="check-row control-field-labels">
+              <input id="absoluteIndex" name="absoluteIndex" type="checkbox" autocomplete="off">
+              Absolute index
+            </label>
+          </div>
+        </details>
+        <button type="button" id="pause" class="control-action">Pause</button>
+        <button type="button" id="clear" class="control-action">Clear</button>
+        <div class="status-box" data-level="info">
+          <span>Source status</span>
+          <strong id="statusHeadline" aria-live="polite">Starting</strong>
+          <small id="freshnessMeta" class="freshness-meta">Waiting for frame</small>
+          <details class="status-log">
+            <summary>Log</summary>
+            <pre id="sourceStatus">Starting</pre>
+          </details>
         </div>
       </section>
 
       <section class="metric-row" aria-label="Live metrics">
-        <div class="metric"><span>Sample</span><strong id="sampleMeta">Waiting for data</strong></div>
+        <div class="metric metric-sample">
+          <span>Sample</span>
+          <div class="sample-badges" id="sampleMeta">
+            <span class="sample-badge">Waiting</span>
+          </div>
+        </div>
         <div class="metric"><span>Population rate</span><strong id="populationRate">0 Hz</strong></div>
         <div class="metric"><span>Active channels</span><strong id="activeChannels">0</strong></div>
         <div class="metric"><span>Crossings</span><strong id="totalCrossings">0</strong></div>
         <div class="metric"><span>Sample rate</span><strong id="sampleRate">3750.8 Hz</strong></div>
       </section>
+
+      <section class="mea-stat-grid" id="meaStats" aria-label="MEA summary"></section>
 
       <section class="dashboard-grid">
         <article class="panel panel-wide">
@@ -67,8 +99,16 @@
               <h2>Live Raster</h2>
               <p>Each tick is a client-side threshold crossing, not an assigned neuron identity.</p>
             </div>
+            <span class="panel-meta" id="rasterMeta">12 s window</span>
           </div>
-          <canvas id="rasterCanvas" height="460"></canvas>
+          <canvas
+            id="rasterCanvas"
+            height="460"
+            role="img"
+            aria-label="Rolling raster plot of threshold crossings across 128 electrodes."
+            aria-describedby="rasterSummary"
+          >Rolling raster plot of threshold crossings across 128 electrodes.</canvas>
+          <p id="rasterSummary" class="chart-summary">Waiting for threshold crossings.</p>
         </article>
 
         <article class="panel panel-wide">
@@ -77,8 +117,21 @@
               <h2>Firing-Rate Heatmap</h2>
               <p>Logical electrode layout by index across four MEAs. No anatomical regions are inferred.</p>
             </div>
+            <span class="panel-meta" id="heatmapMeta">Scale 0-20.0 Hz</span>
           </div>
-          <canvas id="heatmapCanvas" height="320"></canvas>
+          <canvas
+            id="heatmapCanvas"
+            height="320"
+            role="img"
+            aria-label="Firing-rate heatmap for four MEAs."
+            aria-describedby="heatmapSummary"
+          >Firing-rate heatmap for four MEAs.</canvas>
+          <div class="heatmap-legend" aria-label="Heatmap color scale">
+            <span>0 Hz</span>
+            <span class="heatmap-ramp" aria-hidden="true"></span>
+            <span id="heatmapLegendMax">20.0 Hz</span>
+          </div>
+          <p id="heatmapSummary" class="chart-summary">Waiting for firing-rate data.</p>
         </article>
 
         <article class="panel">
@@ -87,8 +140,16 @@
               <h2>Activity Timeline</h2>
               <p>Population crossings per second across currently available channels.</p>
             </div>
+            <span class="panel-meta" id="timelineMeta">Waiting</span>
           </div>
-          <canvas id="timelineCanvas" height="250"></canvas>
+          <canvas
+            id="timelineCanvas"
+            height="250"
+            role="img"
+            aria-label="Population activity timeline."
+            aria-describedby="timelineSummary"
+          >Population activity timeline.</canvas>
+          <p id="timelineSummary" class="chart-summary">Waiting for timeline data.</p>
         </article>
 
         <article class="panel">
@@ -97,28 +158,42 @@
               <h2>Center of Activity</h2>
               <p>A weighted average electrode position from crossing counts.</p>
             </div>
+            <span class="panel-meta" id="centerMeta">0/4 active</span>
           </div>
-          <canvas id="centerCanvas" height="250"></canvas>
+          <canvas
+            id="centerCanvas"
+            height="250"
+            role="img"
+            aria-label="Weighted center of activity by MEA."
+            aria-describedby="centerSummary"
+          >Weighted center of activity by MEA.</canvas>
+          <p id="centerSummary" class="chart-summary">Waiting for center-of-activity data.</p>
         </article>
 
-        <article class="panel">
+        <article class="panel panel-wide">
           <div class="panel-header">
             <div>
               <h2>Signals vs Noise</h2>
               <p>The shaded band is the current threshold. Crossings outside it are counted.</p>
             </div>
+            <span class="panel-meta" id="signalMeta">+/-50 uV</span>
           </div>
-          <canvas id="signalCanvas" height="250"></canvas>
+          <canvas
+            id="signalCanvas"
+            height="250"
+            role="img"
+            aria-label="Voltage trace for the most active electrode against the current threshold."
+            aria-describedby="signalSummary noiseSummary"
+          >Voltage trace for the most active electrode against the current threshold.</canvas>
+          <p id="signalSummary" class="chart-summary">Waiting for probe-channel signal data.</p>
           <p id="noiseSummary" class="microcopy">Waiting for a probe channel.</p>
         </article>
 
-        <article class="panel explain-panel">
-          <div class="panel-header">
-            <div>
-              <h2>What Am I Looking At?</h2>
-              <p>Short context for reading the public stream.</p>
-            </div>
-          </div>
+        <details class="help-drawer">
+          <summary>
+            <span>Reading the stream</span>
+            <small>MEA, biochip, threshold, and activity terms</small>
+          </summary>
           <dl class="explain-list">
             <div>
               <dt>MEA</dt>
@@ -142,10 +217,8 @@
             </div>
           </dl>
           <p id="mappingProbe" class="mapping-probe"></p>
-        </article>
+        </details>
       </section>
-
-      <section class="mea-stat-grid" id="meaStats" aria-label="MEA stats"></section>
     </main>
 
     <footer class="footer">
@@ -155,6 +228,6 @@
       </p>
     </footer>
 
-    <script type="module" src="src/main.js"></script>
+    <script type="module" src="src/main.js?v=20260601-perf"></script>
   </body>
 </html>

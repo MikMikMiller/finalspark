@@ -1,6 +1,6 @@
-import { REPLAY_FIXTURE_URL } from "../config.js";
-import { cloneMeaSample, makeFrame } from "./frame-utils.js";
-import { normalizeReplayPayload } from "./replay-codec.js";
+import { REPLAY_FIXTURE_URL } from "../config.js?v=20260601-perf";
+import { cloneMeaSample, makeFrame } from "./frame-utils.js?v=20260601-perf";
+import { normalizeReplayPayload } from "./replay-codec.js?v=20260601-perf";
 
 export class ReplaySource {
   constructor({ fixtureUrl = REPLAY_FIXTURE_URL } = {}) {

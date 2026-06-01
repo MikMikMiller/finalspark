@@ -1,4 +1,4 @@
-import { CHANNEL_COUNT } from "./mapping.js";
+import { CHANNEL_COUNT } from "./mapping.js?v=20260601-perf";
 
 const DEFAULT_REFRACTORY_MS = 2;
 

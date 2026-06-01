@@ -1,25 +1,43 @@
-import { electrodeGridForMea, formatChannelLabel } from "../mapping.js";
-import { meaAccent, prepareCanvas, rateColor } from "./canvas.js";
+import { electrodeGridForMea, formatChannelLabel } from "../mapping.js?v=20260601-perf";
+import { meaAccent, prepareCanvas, rateColor } from "./canvas.js?v=20260601-perf";
 
-export function renderHeatmap(canvas, rates, { useAbsoluteIndex }) {
+export function renderHeatmap(canvas, rates, { useAbsoluteIndex, scaleMaxHz = 20 }) {
   const { ctx, width, height } = prepareCanvas(canvas);
-  ctx.fillStyle = "#fbfcf8";
+  ctx.fillStyle = "#fbfdff";
   ctx.fillRect(0, 0, width, height);
 
-  const maxRate = Math.max(1, ...rates);
-  const gap = 18;
-  const panelWidth = (width - gap * 5) / 4;
-  const panelHeight = height - 42;
+  const maxRate = Math.max(1, scaleMaxHz);
+  const layout = meaPanelLayout(width, height);
 
   for (let meaId = 1; meaId <= 4; meaId += 1) {
-    const x0 = gap + (meaId - 1) * (panelWidth + gap);
-    const y0 = 28;
-    drawMeaHeatmap(ctx, x0, y0, panelWidth, panelHeight, meaId, rates, maxRate, useAbsoluteIndex);
+    const { x, y } = layout.position(meaId);
+    drawMeaHeatmap(ctx, x, y, layout.panelWidth, layout.panelHeight, meaId, rates, maxRate, useAbsoluteIndex);
   }
+}
 
-  ctx.fillStyle = "#2d342f";
-  ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-  ctx.fillText(`Firing rate heatmap, max ${maxRate.toFixed(1)} Hz`, 14, 18);
+function meaPanelLayout(width, height) {
+  const header = 12;
+  const bottom = 12;
+  const compact = width < 560;
+  const columns = compact ? 2 : 4;
+  const gap = compact ? 14 : 18;
+  const rows = Math.ceil(4 / columns);
+  const panelWidth = Math.max(1, (width - gap * (columns + 1)) / columns);
+  const panelHeight = Math.max(1, (height - header - bottom - gap * (rows - 1)) / rows);
+
+  return {
+    panelWidth,
+    panelHeight,
+    position(meaId) {
+      const index = meaId - 1;
+      const col = index % columns;
+      const row = Math.floor(index / columns);
+      return {
+        x: gap + col * (panelWidth + gap),
+        y: header + row * (panelHeight + gap),
+      };
+    },
+  };
 }
 
 function drawMeaHeatmap(ctx, x0, y0, width, height, meaId, rates, maxRate, useAbsoluteIndex) {
@@ -29,10 +47,12 @@ function drawMeaHeatmap(ctx, x0, y0, width, height, meaId, rates, maxRate, useAb
   const cellHeight = (height - titleHeight - cellGap * 3) / 4;
   const grid = electrodeGridForMea(meaId);
 
-  ctx.strokeStyle = "#d8ddd7";
+  ctx.strokeStyle = "#d7dee7";
   ctx.strokeRect(x0 + 0.5, y0 + 0.5, width - 1, height - 1);
   ctx.fillStyle = meaAccent(meaId);
   ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
   ctx.fillText(`MEA ${meaId}`, x0 + 8, y0 + 14);
 
   for (let row = 0; row < grid.length; row += 1) {
@@ -44,11 +64,16 @@ function drawMeaHeatmap(ctx, x0, y0, width, height, meaId, rates, maxRate, useAb
 
       ctx.fillStyle = rateColor(value, maxRate);
       ctx.fillRect(x, y, cellWidth, cellHeight);
-      ctx.strokeStyle = "rgba(20, 25, 21, 0.18)";
+      ctx.strokeStyle = "rgba(32, 39, 34, 0.18)";
       ctx.strokeRect(x + 0.5, y + 0.5, cellWidth - 1, cellHeight - 1);
-      ctx.fillStyle = value > maxRate * 0.55 ? "#fffdf5" : "#26302a";
-      ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-      ctx.fillText(formatChannelLabel(channel, useAbsoluteIndex), x + 4, y + 13);
+      const canShowLabel = useAbsoluteIndex ? cellWidth >= 23 && cellHeight >= 18 : cellWidth >= 15 && cellHeight >= 16;
+      if (canShowLabel) {
+        ctx.fillStyle = value > maxRate * 0.55 ? "#ffffff" : "#202722";
+        ctx.font = `${cellWidth < 18 ? 9 : 10}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(formatChannelLabel(channel, useAbsoluteIndex), x + cellWidth / 2, y + cellHeight / 2);
+      }
     }
   }
 }

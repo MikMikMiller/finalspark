@@ -1,5 +1,5 @@
-import { SAMPLE_COUNT, SAMPLE_RATE_HZ, SAMPLE_WINDOW_MS } from "../config.js";
-import { makeFrame } from "./frame-utils.js";
+import { SAMPLE_COUNT, SAMPLE_RATE_HZ, SAMPLE_WINDOW_MS } from "../config.js?v=20260601-perf";
+import { makeFrame } from "./frame-utils.js?v=20260601-perf";
 
 export class DemoSource {
   constructor() {

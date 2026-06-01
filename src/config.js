@@ -5,6 +5,7 @@ export const DEFAULT_THRESHOLD_UV = 50;
 export const DEFAULT_RANGE_UV = 100;
 export const RANGES_UV = [50, 100, 200, 500, 1000, 2000];
 export const RASTER_WINDOW_MS = 12000;
+export const MAX_RASTER_EVENTS = 12000;
 export const TIMELINE_POINTS = 90;
 export const REPLAY_FIXTURE_URL = "data/replay-sample.json";
 export const LIVE_ENDPOINTS = [

@@ -1,21 +1,21 @@
-import { prepareCanvas } from "./canvas.js";
+import { prepareCanvas } from "./canvas.js?v=20260601-perf";
 
 export function renderTimeline(canvas, history) {
   const { ctx, width, height } = prepareCanvas(canvas);
-  ctx.fillStyle = "#fbfcf8";
+  ctx.fillStyle = "#fbfdff";
   ctx.fillRect(0, 0, width, height);
-  ctx.strokeStyle = "#d8ddd7";
+  ctx.strokeStyle = "#d7dee7";
   ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
 
-  const left = 40;
+  const left = 56;
   const right = 14;
   const top = 18;
-  const bottom = 28;
+  const bottom = 24;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
   const maxRate = Math.max(1, ...history.map((point) => point.populationRateHz));
 
-  ctx.strokeStyle = "#edf0ea";
+  ctx.strokeStyle = "#edf2f7";
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i += 1) {
     const y = top + (plotHeight * i) / 4;
@@ -33,15 +33,13 @@ export function renderTimeline(canvas, history) {
       if (index === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     });
-    ctx.strokeStyle = "#257e6f";
+    ctx.strokeStyle = "#2ea3f2";
     ctx.lineWidth = 2;
     ctx.stroke();
   }
 
-  ctx.fillStyle = "#2d342f";
-  ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-  ctx.fillText("Population activity timeline", left, 14);
-  ctx.fillStyle = "#66716b";
-  ctx.fillText(`${maxRate.toFixed(1)} Hz`, 6, top + 6);
-  ctx.fillText("0", 25, top + plotHeight);
+  ctx.fillStyle = "#68717a";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  ctx.fillText("0", left - 8, top + plotHeight);
 }

@@ -1,11 +1,11 @@
-import { LIVE_ENDPOINTS, SAMPLE_RATE_HZ, SAMPLE_WINDOW_MS } from "../config.js";
+import { LIVE_ENDPOINTS, SAMPLE_RATE_HZ, SAMPLE_WINDOW_MS } from "../config.js?v=20260601-perf";
 import {
   isEngineOpenPacket,
   isNamespaceConnectedPacket,
   isPingPacket,
   makeMeaSelectionPacket,
-} from "./socketio-protocol.js";
-import { makeFrame } from "./frame-utils.js";
+} from "./socketio-protocol.js?v=20260601-perf";
+import { makeFrame } from "./frame-utils.js?v=20260601-perf";
 
 export class LiveSource {
   constructor({ endpoints = LIVE_ENDPOINTS } = {}) {
