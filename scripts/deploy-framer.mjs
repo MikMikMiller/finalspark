@@ -6,10 +6,14 @@ const PROJECT_URL = "https://framer.com/projects/CpOBrSHMchxEpTjLh4be"
 const COMPONENT_NAME = "FinalSparkLiveViz.tsx"
 const COMPONENT_PATH = new URL("../framer/FinalSparkLiveViz.tsx", import.meta.url)
 const REPLAY_PATH = new URL("../data/replay-sample.json", import.meta.url)
+const SOCIAL_PREVIEW_PATH = new URL("../assets/social-preview.png", import.meta.url)
 const TOKEN_PATH = new URL("../codexframer.rtf", import.meta.url)
+const SITE_URL = "https://finalsnake.framer.ai/"
 const SITE_TITLE = "FinalSpark Live Activity Dashboard"
 const SITE_DESCRIPTION =
   "Public LiveMEA windows with crossings, heatmaps, timeline, and electrode mapping."
+const SITE_IMAGE_ALT =
+  "FinalSpark Live Activity Dashboard showing replay metrics, MEA activity, and a live raster panel."
 const DEFAULT_HEADLESS_SERVER_URL = "wss://api.framer.com/channel/headless-plugin"
 const PREFLIGHT_TIMEOUT_MS = 10_000
 
@@ -35,7 +39,9 @@ async function main() {
     console.log(`Connected to ${project.name}`)
 
     if (siteCodeOnly) {
-      await upsertSiteMetadata(framer)
+      const socialImage = await uploadSocialPreviewImage(framer)
+      await upsertPageMetadata(framer, socialImage.url)
+      await upsertSiteMetadata(framer, socialImage.url)
       const changed = await framer.getChangedPaths()
       console.log(`Changed paths: ${JSON.stringify(changed)}`)
       await publishIfRequested(framer)
@@ -44,6 +50,7 @@ async function main() {
 
     const source = await readFile(COMPONENT_PATH, "utf8")
     const replayBytes = await readFile(REPLAY_PATH)
+    const socialImage = await uploadSocialPreviewImage(framer)
 
     const diagnostics = await framer.typecheckCode(COMPONENT_NAME, source, {
       strict: false,
@@ -76,8 +83,8 @@ async function main() {
     await upsertPrimaryInstance(framer, componentExport.insertURL, replayAsset)
     await verifyReplicaInstances(framer)
     await rebrandTemplate(framer)
-    await upsertPageMetadata(framer)
-    await upsertSiteMetadata(framer)
+    await upsertPageMetadata(framer, socialImage.url)
+    await upsertSiteMetadata(framer, socialImage.url)
     const changed = await framer.getChangedPaths()
     console.log(`Changed paths: ${JSON.stringify(changed)}`)
 
@@ -168,6 +175,21 @@ async function upsertCodeFile(framer, source) {
     return existing.setFileContent(source)
   }
   return framer.createCodeFile(COMPONENT_NAME, source)
+}
+
+async function uploadSocialPreviewImage(framer) {
+  const socialPreviewBytes = await readFile(SOCIAL_PREVIEW_PATH)
+  const socialImage = await framer.uploadImage({
+    name: "finalspark-social-preview.png",
+    image: {
+      bytes: new Uint8Array(socialPreviewBytes),
+      mimeType: "image/png",
+    },
+    altText: SITE_IMAGE_ALT,
+    resolution: "full",
+  })
+  console.log(`Social preview image uploaded: ${socialImage.url}`)
+  return socialImage
 }
 
 async function upsertPrimaryInstance(framer, insertURL, replayAsset) {
@@ -369,7 +391,7 @@ async function rebrandTemplate(framer) {
   console.log(`Template rebrand: ${textUpdates} text updates, ${componentUpdates} component/frame updates`)
 }
 
-async function upsertPageMetadata(framer) {
+async function upsertPageMetadata(framer, socialImageUrl) {
   const pages = await framer.getNodesWithType("WebPageNode")
   const homePage = pages.find((page) => page.path === "/")
   if (!homePage) {
@@ -378,8 +400,8 @@ async function upsertPageMetadata(framer) {
 
   await framer.applyAgentChanges(
     [
-      `SET rootNode metadata.title="${escapeDsl(SITE_TITLE)}" metadata.description="${escapeDsl(SITE_DESCRIPTION)}"`,
-      `SET ${homePage.id} metadata.title="${escapeDsl(SITE_TITLE)}" metadata.description="${escapeDsl(SITE_DESCRIPTION)}" metadata.noIndex="false" metadata.noIndexSite="false"`,
+      `SET rootNode metadata.title="${escapeDsl(SITE_TITLE)}" metadata.description="${escapeDsl(SITE_DESCRIPTION)}" metadata.socialImage="${escapeDsl(socialImageUrl)}"`,
+      `SET ${homePage.id} metadata.title="${escapeDsl(SITE_TITLE)}" metadata.description="${escapeDsl(SITE_DESCRIPTION)}" metadata.socialImage="${escapeDsl(socialImageUrl)}" metadata.noIndex="false" metadata.noIndexSite="false"`,
     ].join("; ") + ";",
     { pagePath: "/" }
   )
@@ -387,7 +409,7 @@ async function upsertPageMetadata(framer) {
   console.log(`Home page metadata ready: ${homePage.id}`)
 }
 
-async function upsertSiteMetadata(framer) {
+async function upsertSiteMetadata(framer, socialImageUrl) {
   const overlayCleanupScript = `(() => {
   const hiddenSelectors = "#__framer-badge-container, #__framer-editorbar";
   const hideFramerOverlays = () => {
@@ -413,13 +435,25 @@ async function upsertSiteMetadata(framer) {
   const metadataScript = `(() => {
   const title = ${JSON.stringify(SITE_TITLE)};
   const description = ${JSON.stringify(SITE_DESCRIPTION)};
+  const siteUrl = ${JSON.stringify(SITE_URL)};
+  const socialImageUrl = ${JSON.stringify(socialImageUrl)};
+  const socialImageAlt = ${JSON.stringify(SITE_IMAGE_ALT)};
   document.title = title;
   const tags = [
     ["name", "description", description],
     ["property", "og:title", title],
     ["property", "og:description", description],
+    ["property", "og:type", "website"],
+    ["property", "og:url", siteUrl],
+    ["property", "og:image", socialImageUrl],
+    ["property", "og:image:width", "1200"],
+    ["property", "og:image:height", "630"],
+    ["property", "og:image:alt", socialImageAlt],
+    ["name", "twitter:card", "summary_large_image"],
     ["name", "twitter:title", title],
     ["name", "twitter:description", description],
+    ["name", "twitter:image", socialImageUrl],
+    ["name", "twitter:image:alt", socialImageAlt],
   ];
   for (const [attribute, key, content] of tags) {
     const matches = document.querySelectorAll(\`meta[\${attribute}="\${key}"]\`);
@@ -434,14 +468,29 @@ async function upsertSiteMetadata(framer) {
   }
 })();`
   await framer.setCustomCode({
-    location: "headEnd",
+    location: "headStart",
     html: [
       `<title>${escapeHtml(SITE_TITLE)}</title>`,
+      `<link rel="canonical" href="${escapeHtml(SITE_URL)}">`,
       `<meta name="description" content="${escapeHtml(SITE_DESCRIPTION)}">`,
+      `<meta property="og:type" content="website">`,
+      `<meta property="og:url" content="${escapeHtml(SITE_URL)}">`,
       `<meta property="og:title" content="${escapeHtml(SITE_TITLE)}">`,
       `<meta property="og:description" content="${escapeHtml(SITE_DESCRIPTION)}">`,
+      `<meta property="og:image" content="${escapeHtml(socialImageUrl)}">`,
+      `<meta property="og:image:width" content="1200">`,
+      `<meta property="og:image:height" content="630">`,
+      `<meta property="og:image:alt" content="${escapeHtml(SITE_IMAGE_ALT)}">`,
+      `<meta name="twitter:card" content="summary_large_image">`,
       `<meta name="twitter:title" content="${escapeHtml(SITE_TITLE)}">`,
       `<meta name="twitter:description" content="${escapeHtml(SITE_DESCRIPTION)}">`,
+      `<meta name="twitter:image" content="${escapeHtml(socialImageUrl)}">`,
+      `<meta name="twitter:image:alt" content="${escapeHtml(SITE_IMAGE_ALT)}">`,
+    ].join("\n"),
+  })
+  await framer.setCustomCode({
+    location: "headEnd",
+    html: [
       `<style data-finalspark-framer-overlay-cleanup>
         #__framer-badge-container,
         #__framer-editorbar {
