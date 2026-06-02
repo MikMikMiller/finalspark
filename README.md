@@ -100,7 +100,7 @@ Every adapter emits the same normalized frame:
   channelCount,
   sampleCount,
   sampleRateHz,
-  units: "uV",
+  units,
   samples: Float32Array,
   availableChannels: Uint8Array
 }
@@ -118,7 +118,7 @@ The core stores only this generic frame contract. FinalSpark, Socket.IO, and MEA
 ## What The Views Show
 
 - `Activity Raster`: threshold crossings across available channels.
-- `Activity-Rate Heatmap`: logical electrode layout by index, grouped as 4 MEAs x 32 electrodes for the included public live/frozen layout.
+- `Activity-Rate Heatmap`: logical source layout by channel index; the included public live/frozen layout is grouped as 4 MEAs x 32 electrodes.
 - `Activity Timeline`: population threshold crossings over recent frames.
 - `Center of Activity`: weighted average electrode position from crossing counts, following the formula described in the Frontiers paper DOI `10.3389/frai.2024.1376042`.
 - `Signals vs Noise`: a probe trace with the current threshold band.
