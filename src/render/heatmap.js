@@ -1,18 +1,69 @@
 import { electrodeGridForMea, formatChannelLabel } from "../mapping.js?v=20260601-perf";
 import { meaAccent, prepareCanvas, rateColor } from "./canvas.js?v=20260601-perf";
 
-export function renderHeatmap(canvas, rates, { useAbsoluteIndex, scaleMaxHz = 20 }) {
+export function renderHeatmap(canvas, rates, { useAbsoluteIndex, scaleMaxHz = 20, layout = null }) {
   const { ctx, width, height } = prepareCanvas(canvas);
   ctx.fillStyle = "#fbfdff";
   ctx.fillRect(0, 0, width, height);
 
   const maxRate = Math.max(1, scaleMaxHz);
-  const layout = meaPanelLayout(width, height);
+  if (!isMeaLayout(layout, rates.length)) {
+    drawGenericHeatmap(ctx, 18, 18, width - 36, height - 36, rates, maxRate, useAbsoluteIndex, layout);
+    return;
+  }
+
+  const panelLayout = meaPanelLayout(width, height);
 
   for (let meaId = 1; meaId <= 4; meaId += 1) {
-    const { x, y } = layout.position(meaId);
-    drawMeaHeatmap(ctx, x, y, layout.panelWidth, layout.panelHeight, meaId, rates, maxRate, useAbsoluteIndex);
+    const { x, y } = panelLayout.position(meaId);
+    drawMeaHeatmap(ctx, x, y, panelLayout.panelWidth, panelLayout.panelHeight, meaId, rates, maxRate, useAbsoluteIndex);
   }
+}
+
+function drawGenericHeatmap(ctx, x0, y0, width, height, rates, maxRate, useAbsoluteIndex, layout) {
+  const channelCount = Math.max(1, rates.length);
+  const columns = Math.max(1, Math.min(16, Math.ceil(Math.sqrt(channelCount * Math.max(1, width / Math.max(1, height))))));
+  const rows = Math.ceil(channelCount / columns);
+  const titleHeight = 22;
+  const cellGap = 4;
+  const cellWidth = Math.max(1, (width - cellGap * (columns - 1)) / columns);
+  const cellHeight = Math.max(1, (height - titleHeight - cellGap * (rows - 1)) / rows);
+  const group = Array.isArray(layout?.groups) ? layout.groups[0] : null;
+
+  ctx.strokeStyle = "#d7dee7";
+  ctx.strokeRect(x0 + 0.5, y0 + 0.5, width - 1, height - 1);
+  ctx.fillStyle = meaAccent(group?.id ?? 1);
+  ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText(group?.label ?? "Channels", x0 + 8, y0 + 14);
+
+  for (let channel = 0; channel < channelCount; channel += 1) {
+    const col = channel % columns;
+    const row = Math.floor(channel / columns);
+    const value = rates[channel] ?? 0;
+    const x = x0 + col * (cellWidth + cellGap);
+    const y = y0 + titleHeight + row * (cellHeight + cellGap);
+
+    ctx.fillStyle = rateColor(value, maxRate);
+    ctx.fillRect(x, y, cellWidth, cellHeight);
+    ctx.strokeStyle = "rgba(32, 39, 34, 0.18)";
+    ctx.strokeRect(x + 0.5, y + 0.5, cellWidth - 1, cellHeight - 1);
+    if (cellWidth >= 24 && cellHeight >= 18) {
+      ctx.fillStyle = value > maxRate * 0.55 ? "#ffffff" : "#202722";
+      ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(useAbsoluteIndex ? String(channel) : `C${channel}`, x + cellWidth / 2, y + cellHeight / 2);
+    }
+  }
+}
+
+function isMeaLayout(layout, channelCount) {
+  return channelCount === 128 &&
+    Array.isArray(layout?.groups) &&
+    layout.groups.length === 4 &&
+    layout.groups.every((group, index) => group.startChannel === index * 32 && group.channelCount === 32);
 }
 
 function meaPanelLayout(width, height) {

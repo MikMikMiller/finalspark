@@ -1,6 +1,6 @@
 import { meaAccent, prepareCanvas } from "./canvas.js?v=20260601-perf";
 
-export function renderRaster(canvas, events, { nowMs, windowMs, useAbsoluteIndex }) {
+export function renderRaster(canvas, events, { nowMs, windowMs, useAbsoluteIndex, channelCount = 128, layout = null }) {
   const { ctx, width, height } = prepareCanvas(canvas);
   const left = 68;
   const right = 12;
@@ -8,7 +8,9 @@ export function renderRaster(canvas, events, { nowMs, windowMs, useAbsoluteIndex
   const bottom = 12;
   const plotWidth = Math.max(1, width - left - right);
   const plotHeight = Math.max(1, height - top - bottom);
-  const rowHeight = plotHeight / 128;
+  const rows = Math.max(1, channelCount);
+  const rowHeight = plotHeight / rows;
+  const groups = layoutGroups(layout, rows);
 
   ctx.fillStyle = "#fbfdff";
   ctx.fillRect(0, 0, width, height);
@@ -20,8 +22,9 @@ export function renderRaster(canvas, events, { nowMs, windowMs, useAbsoluteIndex
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#68717a";
 
-  for (let meaId = 1; meaId <= 4; meaId += 1) {
-    const channel = (meaId - 1) * 32;
+  for (let index = 0; index < groups.length; index += 1) {
+    const group = groups[index];
+    const channel = group.startChannel;
     const y = top + channel * rowHeight;
     ctx.strokeStyle = "#cbd7e4";
     ctx.beginPath();
@@ -29,21 +32,25 @@ export function renderRaster(canvas, events, { nowMs, windowMs, useAbsoluteIndex
     ctx.lineTo(width - right, y);
     ctx.stroke();
     ctx.textAlign = "left";
-    ctx.fillStyle = meaAccent(meaId);
-    ctx.fillText(`MEA ${meaId}`, 10, y + rowHeight * 2);
+    ctx.fillStyle = meaAccent(group.id ?? index + 1);
+    ctx.fillText(compactLabel(group.label), 10, y + Math.min(18, rowHeight * 2));
     ctx.textAlign = "right";
     ctx.fillStyle = "#68717a";
   }
 
-  for (let channel = 0; channel < 128; channel += 8) {
+  const tickStep = Math.max(1, Math.ceil(rows / 16));
+  for (let channel = 0; channel < rows; channel += tickStep) {
     const y = top + channel * rowHeight;
-    ctx.strokeStyle = channel % 32 === 0 ? "#cbd7e4" : "#edf2f7";
+    ctx.strokeStyle = groups.some((group) => group.startChannel === channel) ? "#cbd7e4" : "#edf2f7";
     ctx.beginPath();
     ctx.moveTo(left, y);
     ctx.lineTo(width - right, y);
     ctx.stroke();
 
-    const label = useAbsoluteIndex ? channel : channel % 32;
+    const group = groups.find((candidate) =>
+      channel >= candidate.startChannel && channel < candidate.startChannel + candidate.channelCount,
+    );
+    const label = useAbsoluteIndex || !group ? channel : channel - group.startChannel;
     ctx.fillText(String(label).padStart(2, "0"), left - 8, y + rowHeight * 4);
   }
 
@@ -53,13 +60,26 @@ export function renderRaster(canvas, events, { nowMs, windowMs, useAbsoluteIndex
     if (age < 0 || age > windowMs) continue;
     const x = left + plotWidth * (1 - age / windowMs);
     const y = top + event.absoluteChannel * rowHeight + rowHeight / 2;
-    const meaId = Math.floor(event.absoluteChannel / 32) + 1;
+    const group = groups.find((candidate) =>
+      event.absoluteChannel >= candidate.startChannel &&
+      event.absoluteChannel < candidate.startChannel + candidate.channelCount,
+    );
 
-    ctx.fillStyle = meaAccent(meaId);
+    ctx.fillStyle = meaAccent(group?.id ?? 1);
     ctx.globalAlpha = Math.max(0.25, 1 - age / windowMs);
     ctx.fillRect(x, y - Math.max(1, rowHeight * 0.4), 2, Math.max(2, rowHeight * 0.8));
   }
   ctx.globalAlpha = 1;
+}
+
+function layoutGroups(layout, channelCount) {
+  if (Array.isArray(layout?.groups) && layout.groups.length) return layout.groups;
+  return [{ id: 1, label: "Channels", startChannel: 0, channelCount }];
+}
+
+function compactLabel(label) {
+  const text = String(label ?? "Channels");
+  return text.length > 10 ? `${text.slice(0, 9)}...` : text;
 }
 
 function capDrawableEvents(events, maxEvents) {

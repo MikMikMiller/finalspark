@@ -62,6 +62,24 @@ export function splitCountsByMea(crossingCounts) {
   );
 }
 
+export function splitCountsByLayout(crossingCounts, layout) {
+  const groups = Array.isArray(layout?.groups) && layout.groups.length
+    ? layout.groups
+    : [{ id: 1, label: "Channels", startChannel: 0, channelCount: crossingCounts.length }];
+
+  return groups.map((group, index) => {
+    const startChannel = Math.max(0, Number(group.startChannel) || 0);
+    const channelCount = Math.max(0, Number(group.channelCount) || 0);
+    return {
+      id: group.id ?? index + 1,
+      label: group.label ?? `Group ${index + 1}`,
+      startChannel,
+      channelCount,
+      counts: crossingCounts.slice(startChannel, startChannel + channelCount),
+    };
+  });
+}
+
 function round(value, digits) {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;

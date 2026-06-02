@@ -8,6 +8,7 @@ export const RASTER_WINDOW_MS = 12000;
 export const MAX_RASTER_EVENTS = 12000;
 export const TIMELINE_POINTS = 90;
 export const FROZEN_FIXTURE_URL = "data/replay-sample.json";
+export const NWB_FIXTURE_URL = "data/nwb-excerpt.nwb";
 export const LIVE_ENDPOINTS = [
   "wss://livemeaservice.finalspark.com/socket.io/?EIO=4&transport=websocket",
   "wss://livemeaservice2.alpvision.com/socket.io/?EIO=4&transport=websocket",
@@ -16,5 +17,6 @@ export const LIVE_ENDPOINTS = [
 export const SOURCE_LABELS = {
   live: "Live",
   frozen: "Frozen",
+  nwb: "NWB",
   demo: "Demo",
 };

@@ -8,18 +8,18 @@ import {
   SAMPLE_WINDOW_MS,
   SOURCE_LABELS,
   TIMELINE_POINTS,
-} from "./config.js?v=20260601-perf";
+} from "./config.js?v=20260602-nwb";
 import { DemoSource } from "./data/demo-source.js?v=20260601-perf";
 import { FrozenSource } from "./data/frozen-source.js?v=20260601-perf";
 import { LiveSource } from "./data/live-source.js?v=20260601-perf";
 import { channelTraceFromFrame } from "./data/frame-utils.js?v=20260601-perf";
 import { TimeSeriesCore } from "./kernel/time-series-core.js?v=20260601-perf";
 import { channelsForMea, formatChannelLabel, mapChannel } from "./mapping.js?v=20260601-perf";
-import { computeCenterOfActivity, computeCrossingRates, computePopulationActivity, splitCountsByMea } from "./metrics.js?v=20260601-perf";
+import { computeCenterOfActivity, computeCrossingRates, computePopulationActivity, splitCountsByLayout } from "./metrics.js?v=20260602-nwb";
 import { countCrossingsByChannel, detectFrameCrossings, summarizeNoiseBand } from "./crossing-detection.js?v=20260601-perf";
-import { renderCenterOfActivity } from "./render/center-of-activity.js?v=20260601-perf";
-import { renderHeatmap } from "./render/heatmap.js?v=20260601-perf";
-import { renderRaster } from "./render/raster.js?v=20260601-perf";
+import { renderCenterOfActivity } from "./render/center-of-activity.js?v=20260602-nwb";
+import { renderHeatmap } from "./render/heatmap.js?v=20260602-nwb";
+import { renderRaster } from "./render/raster.js?v=20260602-nwb";
 import { renderSignalExplainer } from "./render/signal-explainer.js?v=20260601-perf";
 import { renderTimeline } from "./render/timeline.js?v=20260601-perf";
 import { parseSteppedNumberParam } from "./url-state.js?v=20260601-perf";
@@ -28,6 +28,10 @@ const DEFAULT_WINDOW_SECONDS = RASTER_WINDOW_MS / 1000;
 const SOURCE_FACTORIES = {
   live: (options) => new LiveSource({ meaId: options.meaId }),
   frozen: (options) => new FrozenSource({ src: options.src, loop: options.loop, positionMs: options.positionMs }),
+  nwb: async (options) => {
+    const { NwbSource } = await import("./data/nwb-source.js?v=20260602-nwb");
+    return new NwbSource({ src: options.src, loop: options.loop, positionMs: options.positionMs });
+  },
   demo: () => new DemoSource(),
 };
 const SOURCE_ALIASES = {
@@ -49,7 +53,9 @@ export class App {
     this.options = options;
     this.source = null;
     this.sourceName = normalizeSourceName(options.source) ?? "live";
-    this.sourceSrc = typeof options.src === "string" ? options.src : null;
+    this.sourceInputs = {};
+    if (options.src !== undefined && options.src !== null) this.sourceInputs[this.sourceName] = options.src;
+    this.sourceSrc = typeof this.sourceInputs[this.sourceName] === "string" ? this.sourceInputs[this.sourceName] : null;
     this.meaId = options.meaId ?? options.meaID ?? null;
     this.initialPositionMs = Number(options.positionMs) || 0;
     this.viewName = normalizeViewName(options.view) ?? "overview";
@@ -253,7 +259,10 @@ export class App {
     }
 
     const src = params.get("src");
-    if (src) this.sourceSrc = src;
+    if (src) {
+      this.sourceInputs[this.sourceName] = src;
+      this.sourceSrc = src;
+    }
 
     const position = Number(params.get("position"));
     if (Number.isFinite(position) && position >= 0) this.initialPositionMs = position;
@@ -336,8 +345,10 @@ export class App {
     this.source?.stop();
     this.core.clear();
     this.sourceName = normalized;
-    this.source = SOURCE_FACTORIES[normalized]({
-      src: this.sourceSrc || undefined,
+    const sourceInput = this.sourceInputs[normalized];
+    this.sourceSrc = typeof sourceInput === "string" ? sourceInput : null;
+    this.source = await SOURCE_FACTORIES[normalized]({
+      src: sourceInput || undefined,
       meaId: this.meaId,
       loop: this.options.loop ?? true,
       positionMs: this.initialPositionMs,
@@ -411,10 +422,7 @@ export class App {
     this.rates = computeCrossingRates(this.counts, frame.sampleWindowMs);
     const frameMaxRate = Math.max(20, ...this.rates);
     this.heatmapScaleHz = Math.max(frameMaxRate, this.heatmapScaleHz * 0.96);
-    const countsByMea = splitCountsByMea(this.counts);
-    this.centers = countsByMea.map((localCounts, index) =>
-      computeCenterOfActivity(localCounts, channelsForMea(index + 1)),
-    );
+    this.centers = computeLayoutCenters(this.counts, frame);
 
     const nowMs = performance.now();
     if (keepHistory) {
@@ -437,7 +445,7 @@ export class App {
     this.selectedTraceChannel = findMostActiveChannel(this.counts, frame);
     this.updateStats();
     this.updateFreshness(computePopulationActivity(this.counts, frame.sampleWindowMs));
-    if (this.sourceName === "frozen") this.updateUrlState();
+    if (this.sourceName === "frozen" || this.sourceName === "nwb") this.updateUrlState();
     this.render();
   }
 
@@ -458,24 +466,30 @@ export class App {
     if (this.nodes.totalCrossings) this.nodes.totalCrossings.textContent = String(population.totalCrossings);
     if (this.nodes.sampleRate) this.nodes.sampleRate.textContent = `${(this.frame?.sampleRateHz ?? SAMPLE_RATE_HZ).toFixed(1)} Hz`;
 
-    const countsByMea = splitCountsByMea(this.counts);
-    this.nodes.meaStats.replaceChildren();
-    for (let meaId = 1; meaId <= 4; meaId += 1) {
-      const localCounts = countsByMea[meaId - 1];
-      const total = localCounts.reduce((sum, count) => sum + count, 0);
-      const active = localCounts.filter((count) => count > 0).length;
-      const card = document.createElement("div");
-      card.className = "mea-stat";
-      card.innerHTML = `<strong>MEA ${meaId}</strong><span>${total}</span><small>${active}/32 active</small>`;
-      this.nodes.meaStats.append(card);
+    if (this.nodes.meaStats) {
+      const groups = splitCountsByLayout(this.counts, this.frame?.meta?.layout);
+      this.nodes.meaStats.replaceChildren();
+      for (const group of groups) {
+        const total = group.counts.reduce((sum, count) => sum + count, 0);
+        const active = group.counts.filter((count) => count > 0).length;
+        const card = document.createElement("div");
+        card.className = "mea-stat";
+        card.innerHTML = `<strong>${escapeHtml(group.label)}</strong><span>${total}</span><small>${active}/${group.channelCount} active</small>`;
+        this.nodes.meaStats.append(card);
+      }
     }
 
     const trace = this.frame ? channelTraceFromFrame(this.frame, this.selectedTraceChannel) : null;
     if (trace && this.nodes.noiseSummary) {
-      const channel = mapChannel(this.selectedTraceChannel);
       const noise = summarizeNoiseBand(trace);
-      this.nodes.noiseSummary.textContent =
-        `Probe electrode ${formatChannelLabel(channel, this.useAbsoluteIndex)} on MEA ${channel.meaId}: center ${noise.centerUv} uV, noise floor ${noise.noiseFloorUv} uV.`;
+      if (isMeaFrame(this.frame)) {
+        const channel = mapChannel(this.selectedTraceChannel);
+        this.nodes.noiseSummary.textContent =
+          `Probe electrode ${formatChannelLabel(channel, this.useAbsoluteIndex)} on MEA ${channel.meaId}: center ${noise.centerUv} ${this.frame.units}, noise floor ${noise.noiseFloorUv} ${this.frame.units}.`;
+      } else {
+        this.nodes.noiseSummary.textContent =
+          `Probe ${formatGenericChannelLabel(this.frame, this.selectedTraceChannel)}: center ${noise.centerUv} ${this.frame.units}, noise floor ${noise.noiseFloorUv} ${this.frame.units}.`;
+      }
     }
     this.updateChartSummaries(population);
   }
@@ -519,10 +533,11 @@ export class App {
     }
 
     const activeCenters = this.centers.filter((center) => center.active);
-    if (this.nodes.centerMeta) this.nodes.centerMeta.textContent = `${activeCenters.length}/4 active`;
+    const centerCount = this.centers.length || 4;
+    if (this.nodes.centerMeta) this.nodes.centerMeta.textContent = `${activeCenters.length}/${centerCount} active`;
     if (this.nodes.centerSummary) {
       this.nodes.centerSummary.textContent = activeCenters.length
-        ? `${activeCenters.length}/4 MEA centers are active in the current window.`
+        ? `${activeCenters.length}/${centerCount} layout groups are active in the current window.`
         : "Waiting for center-of-activity data.";
     }
 
@@ -531,13 +546,17 @@ export class App {
       if (this.nodes.signalSummary) this.nodes.signalSummary.textContent = "Waiting for probe-channel signal data.";
       return;
     }
-    const channel = mapChannel(this.selectedTraceChannel);
+    const channel = this.frame && isMeaFrame(this.frame) ? mapChannel(this.selectedTraceChannel) : null;
     if (this.nodes.signalMeta) {
-      this.nodes.signalMeta.textContent = `+/-${this.thresholdUv} uV | ${formatChannelLabel(channel, this.useAbsoluteIndex)}`;
+      const label = channel
+        ? formatChannelLabel(channel, this.useAbsoluteIndex)
+        : formatGenericChannelLabel(this.frame, this.selectedTraceChannel);
+      this.nodes.signalMeta.textContent = `+/-${this.thresholdUv} ${this.frame.units} | ${label}`;
     }
     if (this.nodes.signalSummary) {
-      this.nodes.signalSummary.textContent =
-        `Signal trace is following ${formatChannelLabel(channel, this.useAbsoluteIndex)} on MEA ${channel.meaId} at +/-${this.rangeUv} uV.`;
+      this.nodes.signalSummary.textContent = channel
+        ? `Signal trace is following ${formatChannelLabel(channel, this.useAbsoluteIndex)} on MEA ${channel.meaId} at +/-${this.rangeUv} ${this.frame.units}.`
+        : `Signal trace is following ${formatGenericChannelLabel(this.frame, this.selectedTraceChannel)} at +/-${this.rangeUv} ${this.frame.units}.`;
     }
   }
 
@@ -562,7 +581,7 @@ export class App {
     params.set("threshold", String(this.thresholdUv));
     params.set("range", String(this.rangeUv));
     params.set("labels", this.useAbsoluteIndex ? "absolute" : "local");
-    if (this.sourceName === "frozen") {
+    if (this.sourceName === "frozen" || this.sourceName === "nwb") {
       if (this.sourceSrc) params.set("src", this.sourceSrc);
       if (this.frame) params.set("position", String(Math.max(0, Math.round(this.frame.tEnd))));
     } else {
@@ -579,10 +598,13 @@ export class App {
       nowMs,
       windowMs: this.windowMs,
       useAbsoluteIndex: this.useAbsoluteIndex,
+      channelCount: this.frame?.channelCount ?? 128,
+      layout: this.frame?.meta?.layout ?? null,
     });
     renderHeatmap(this.nodes.heatmap, this.rates, {
       useAbsoluteIndex: this.useAbsoluteIndex,
       scaleMaxHz: this.heatmapScaleHz,
+      layout: this.frame?.meta?.layout ?? null,
     });
     renderTimeline(this.nodes.timeline, this.timeline);
     renderCenterOfActivity(this.nodes.center, this.centers);
@@ -627,6 +649,92 @@ function findMostActiveChannel(counts, frame) {
 function countAvailableChannels(frame) {
   if (!frame?.availableChannels) return frame?.channelCount ?? 0;
   return frame.availableChannels.reduce((sum, value) => sum + (value ? 1 : 0), 0);
+}
+
+function computeLayoutCenters(counts, frame) {
+  const groups = splitCountsByLayout(counts, frame?.meta?.layout);
+  if (isMeaFrame(frame)) {
+    return groups.map((group, index) => ({
+      ...computeCenterOfActivity(group.counts, channelsForMea(index + 1)),
+      label: group.label,
+      groupId: group.id,
+      gridColumns: 8,
+      gridRows: 4,
+    }));
+  }
+
+  return groups.map((group) => {
+    const grid = genericGridDimensions(group.channelCount);
+    return {
+      ...computeGenericCenterOfActivity(group.counts, grid),
+      label: group.label,
+      groupId: group.id,
+      gridColumns: grid.columns,
+      gridRows: grid.rows,
+    };
+  });
+}
+
+function computeGenericCenterOfActivity(counts, { columns, rows }) {
+  let weightedX = 0;
+  let weightedY = 0;
+  let totalCrossings = 0;
+
+  for (let index = 0; index < counts.length; index += 1) {
+    const count = counts[index];
+    if (count <= 0) continue;
+    weightedX += (index % columns) * count;
+    weightedY += Math.floor(index / columns) * count;
+    totalCrossings += count;
+  }
+
+  if (totalCrossings === 0) {
+    return {
+      active: false,
+      x: null,
+      y: null,
+      totalCrossings: 0,
+    };
+  }
+
+  return {
+    active: true,
+    x: Math.round((weightedX / totalCrossings) * 1000) / 1000,
+    y: Math.min(rows - 1, Math.round((weightedY / totalCrossings) * 1000) / 1000),
+    totalCrossings,
+  };
+}
+
+function genericGridDimensions(channelCount) {
+  const columns = Math.max(1, Math.ceil(Math.sqrt(channelCount)));
+  return {
+    columns,
+    rows: Math.max(1, Math.ceil(channelCount / columns)),
+  };
+}
+
+function isMeaFrame(frame) {
+  const groups = frame?.meta?.layout?.groups;
+  return frame?.channelCount === 128 &&
+    Array.isArray(groups) &&
+    groups.length === 4 &&
+    groups.every((group, index) => group.startChannel === index * 32 && group.channelCount === 32);
+}
+
+function formatGenericChannelLabel(frame, channelIndex) {
+  const groups = frame?.meta?.layout?.groups ?? [];
+  const group = groups.find((candidate) =>
+    channelIndex >= candidate.startChannel && channelIndex < candidate.startChannel + candidate.channelCount,
+  );
+  if (!group) return `Channel ${channelIndex}`;
+  return `${group.label} ch ${channelIndex - group.startChannel}`;
+}
+
+function escapeHtml(text) {
+  return String(text ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 function setSampleBadges(container, labels) {

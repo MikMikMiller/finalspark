@@ -5,6 +5,7 @@ import {
   computeCenterOfActivity,
   computeCrossingRates,
   computePopulationActivity,
+  splitCountsByLayout,
 } from "../src/metrics.js";
 import { channelsForMea } from "../src/mapping.js";
 
@@ -50,5 +51,21 @@ describe("derived activity metrics", () => {
       populationRateHz: 2.746,
       meanChannelRateHz: 0.021,
     });
+  });
+
+  it("splits crossing counts by generic layout groups", () => {
+    const counts = new Uint16Array([1, 2, 3, 4, 5]);
+    const groups = splitCountsByLayout(counts, {
+      groups: [
+        { id: 1, label: "Group A", startChannel: 0, channelCount: 2 },
+        { id: 2, label: "Group B", startChannel: 2, channelCount: 3 },
+      ],
+    });
+
+    assert.equal(groups.length, 2);
+    assert.equal(groups[0].label, "Group A");
+    assert.deepEqual(Array.from(groups[0].counts), [1, 2]);
+    assert.equal(groups[1].label, "Group B");
+    assert.deepEqual(Array.from(groups[1].counts), [3, 4, 5]);
   });
 });

@@ -1,6 +1,6 @@
 # fs-kernel
 
-Embeddable, zero-build time-series viewer for browser pages. The kernel is a read-only signal surface: adapters feed normalized voltage frames, the core keeps a bounded time window, and the views render threshold crossings, logical electrode maps, activity timeline, Center of Activity, and signal-threshold inspection.
+Embeddable, zero-build time-series viewer for browser pages. The kernel is a read-only signal surface: adapters feed normalized time-series frames, the core keeps a bounded time window, and the views render threshold crossings, logical electrode maps, activity timeline, Center of Activity, and signal-threshold inspection.
 
 The included live adapter uses the public FinalSpark LiveMEA stream. This project is public-stream-only: no Neuroplatform credentials, booked hardware access, private datasets, or platform APIs.
 
@@ -56,14 +56,31 @@ The custom element path is also available:
 
 Options:
 
-- `source`: `live`, `frozen`, or `demo`.
-- `src`: frozen source JSON URL.
+- `source`: `live`, `frozen`, `nwb`, or `demo`.
+- `src`: frozen source JSON URL, NWB URL, or a browser `File` when using `mount()`.
 - `height`: CSS length or pixel number for the embedded viewport.
 - `view`: `overview`, `mapping`, or `explain`.
 - `window`: rolling time window in seconds.
 - `meaId`: optional one-MEA public live selection, `1` through `4`.
 
 The embed renders in Shadow DOM, so styles do not leak in or out. It runs from static HTML/CSS/ES modules without npm, React, Vue, or a bundler.
+
+NWB uses the same mount point and contract:
+
+```html
+<div id="fsk"></div>
+<script type="module">
+  import { mount } from "https://your-host.example/fs-kernel.mjs";
+
+  mount("#fsk", {
+    source: "nwb",
+    src: "https://your-host.example/data/nwb-excerpt.nwb",
+    height: 720
+  });
+</script>
+```
+
+`embed-example-nwb.html` shows the same `#fsk` mount switching between frozen JSON and the bundled NWB excerpt by changing only `source` and `src`.
 
 ## Source Adapters
 
@@ -95,6 +112,7 @@ The core stores only this generic frame contract. FinalSpark, Socket.IO, and MEA
 
 - `Live`: public FinalSpark LiveMEA adapter. It uses polite Socket.IO websocket connections with reconnect backoff and closes them when stopped.
 - `Frozen`: `data/replay-sample.json`, a bundled real public-stream capture normalized through the same adapter contract.
+- `NWB`: `data/nwb-excerpt.nwb`, a 41 KB HDF5/NWB excerpt from DANDI asset `293b402c-2217-4611-8e68-b66a6b7be3a1`. The adapter reads `acquisition/*/data` and `starting_time.rate` through h5wasm, which is imported lazily only when `source: "nwb"` is selected.
 - `Demo`: deterministic synthetic voltage traces generated in the browser.
 
 ## What The Views Show
@@ -104,7 +122,7 @@ The core stores only this generic frame contract. FinalSpark, Socket.IO, and MEA
 - `Activity Timeline`: population threshold crossings over recent frames.
 - `Center of Activity`: weighted average electrode position from crossing counts, following the formula described in the Frontiers paper DOI `10.3389/frai.2024.1376042`.
 - `Signals vs Noise`: a probe trace with the current threshold band.
-- `URL State`: shareable `source`, `view`, `window`, `threshold`, `range`, `labels`, and frozen `position` parameters.
+- `URL State`: shareable `source`, `view`, `window`, `threshold`, `range`, `labels`, and recorded-source `src`/`position` parameters.
 
 Threshold crossings are coarse activity markers. They are not sorted units and no cell identity is inferred. The electrode grid is a logical layout by index; no biological area is inferred.
 
@@ -125,7 +143,7 @@ Verification was done before writing app code. Details are in `docs/VERIFY.md`.
 
 ## Roadmap Notes
 
-NWB excerpt support is a future adapter, not part of this version. LSL support would require a websocket bridge backed by `pylsl` or `liblsl`; browsers do not speak native LSL over UDP multicast directly.
+NWB support is currently read-only excerpt playback. It does not include DANDI browsing/search, NWB writing, or broad schema coverage beyond readable acquisition TimeSeries datasets. LSL support would require a websocket bridge backed by `pylsl` or `liblsl`; browsers do not speak native LSL over UDP multicast directly.
 
 ## Project Shape
 
@@ -133,13 +151,14 @@ The app is plain static HTML, CSS, and ES modules:
 
 - `fs-kernel.mjs`: public `mount()` API and `<fs-kernel>` custom element.
 - `src/kernel/time-series-core.js`: bounded generic time-series frame buffer.
-- `src/data/*`: live, frozen, demo, normalized frame helpers, and Socket.IO packet helpers.
+- `src/data/*`: live, frozen, NWB, demo, normalized frame helpers, and Socket.IO packet helpers.
 - `src/mapping.js`: absolute/local channel mapping and logical layout used by the included MEA views.
 - `src/crossing-detection.js`: threshold crossing detection.
 - `src/url-state.js`: query string parsing.
 - `src/metrics.js`: rates, population activity, and Center of Activity.
 - `src/render/*`: canvas renderers for raster, heatmap, timeline, CoA, and trace explanation.
 - `embed-example.html`: one-import frozen-source embed example.
+- `embed-example-nwb.html`: one-mount example that switches between frozen JSON and NWB excerpt playback.
 - `framer/FinalSparkLiveViz.tsx`: Framer showcase shell for the published site.
 
 The kernel should run from any simple static host, including GitHub Pages.

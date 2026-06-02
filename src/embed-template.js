@@ -10,7 +10,7 @@ export function createKernelMarkup({ stylesheetHref, height } = {}) {
           <div class="topbar-copy">
             <h1>Embeddable Time-Series Kernel</h1>
             <p class="lede">
-              A zero-build read-only signal viewer with live, frozen, and demo source adapters.
+              A zero-build read-only signal viewer with live, frozen, NWB, and demo source adapters.
             </p>
           </div>
         </div>
@@ -23,6 +23,7 @@ export function createKernelMarkup({ stylesheetHref, height } = {}) {
             <div class="source-switch" aria-label="Data source">
               <button type="button" data-source="live" class="is-active" aria-pressed="true">Live</button>
               <button type="button" data-source="frozen" aria-pressed="false">Frozen</button>
+              <button type="button" data-source="nwb" aria-pressed="false">NWB</button>
               <button type="button" data-source="demo" aria-pressed="false">Demo</button>
             </div>
           </div>
@@ -110,7 +111,7 @@ export function createKernelMarkup({ stylesheetHref, height } = {}) {
             <div class="panel-header">
               <div>
                 <h2>Activity-Rate Heatmap</h2>
-                <p>Logical electrode layout by index across four MEAs. No anatomical regions are inferred.</p>
+                <p>Logical source layout by channel index. No anatomical regions are inferred.</p>
               </div>
               <span class="panel-meta" id="heatmapMeta">Scale 0-20.0 Hz</span>
             </div>
@@ -118,9 +119,9 @@ export function createKernelMarkup({ stylesheetHref, height } = {}) {
               id="heatmapCanvas"
               height="320"
               role="img"
-              aria-label="Activity-rate heatmap for four MEAs."
+              aria-label="Activity-rate heatmap by source layout."
               aria-describedby="heatmapSummary"
-            >Activity-rate heatmap for four MEAs.</canvas>
+            >Activity-rate heatmap by source layout.</canvas>
             <div class="heatmap-legend" aria-label="Heatmap color scale">
               <span>0 Hz</span>
               <span class="heatmap-ramp" aria-hidden="true"></span>
@@ -223,6 +224,7 @@ export function createKernelMarkup({ stylesheetHref, height } = {}) {
       <footer class="footer">
         <p>
           Public-stream-only viewer. Live mode uses the public FinalSpark LiveMEA stream; frozen and demo modes keep the kernel inspectable from any static host.
+          NWB mode reads a local excerpt through h5wasm in the browser.
         </p>
       </footer>
     </div>

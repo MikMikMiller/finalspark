@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>fs-kernel NWB embed example</title>
+    <link rel="icon" href="data:,">
+    <style>
+      body {
+        margin: 0;
+        min-width: 320px;
+        background: #f1f4f8;
+        color: #202722;
+        font-family: Avenir Next, Aptos, Segoe UI, system-ui, sans-serif;
+      }
+
+      .page {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 16px;
+      }
+
+      button {
+        min-height: 36px;
+        border: 1px solid #bac6d3;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #202722;
+        font: inherit;
+        padding: 0 14px;
+        cursor: pointer;
+      }
+
+      button[aria-pressed="true"] {
+        border-color: #1b5a72;
+        background: #1b5a72;
+        color: #ffffff;
+      }
+
+      .embed-slot {
+        min-height: 720px;
+        border: 1px solid #d7dee7;
+        background: #ffffff;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <h1>Recorded source embed</h1>
+      <div class="toolbar" aria-label="Recorded source">
+        <button type="button" data-example-source="frozen" aria-pressed="false">Frozen JSON</button>
+        <button type="button" data-example-source="nwb" aria-pressed="true">NWB excerpt</button>
+      </div>
+      <div id="fsk" class="embed-slot"></div>
+    </main>
+    <script type="module">
+      import { mount } from "./fs-kernel.mjs";
+
+      const sources = {
+        frozen: {
+          source: "frozen",
+          src: "data/replay-sample.json",
+        },
+        nwb: {
+          source: "nwb",
+          src: "data/nwb-excerpt.nwb",
+        },
+      };
+
+      async function showSource(name) {
+        for (const button of document.querySelectorAll("[data-example-source]")) {
+          button.setAttribute("aria-pressed", String(button.dataset.exampleSource === name));
+        }
+
+        await mount("#fsk", {
+          ...sources[name],
+          height: 720,
+          view: "overview",
+          window: 12,
+          urlState: false,
+        });
+      }
+
+      for (const button of document.querySelectorAll("[data-example-source]")) {
+        button.addEventListener("click", () => showSource(button.dataset.exampleSource));
+      }
+
+      showSource("nwb");
+    </script>
+  </body>
+</html>
