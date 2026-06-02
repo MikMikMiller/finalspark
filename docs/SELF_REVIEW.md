@@ -67,3 +67,18 @@ Run date: 2026-06-02.
 - [x] `embed-example-nwb.html` loaded NWB in one mount point and switched the same mount point back to frozen JSON.
 
 Fork B verdict: passed. Core and adapter contract were not changed; NWB was added as a second recorded-source adapter behind the existing source interface.
+
+## NWB Multichannel Demo Fixture Review
+
+Run date: 2026-06-02.
+
+- [x] `src/kernel/time-series-core.js` stayed unchanged.
+- [x] `src/data/nwb-source.js` stayed unchanged; the multichannel fixture is read through the existing `NwbSource`.
+- [x] `src/data/nwb-codec.js` stayed unchanged; its existing 2D `time x channels` path reads the generated PyNWB TimeSeries.
+- [x] `data/nwb-excerpt.nwb` is now a synthetic 24-channel, 6-second, 1000 Hz TimeSeries with `unit: microvolts`.
+- [x] `tools/make-nwb-fixture.py` regenerates the fixture with PyNWB and labels it as synthetic, not biological.
+- [x] h5wasm readback returned `sourceKind: "nwb"`, `channelCount: 24`, `sampleRateHz: 1000`, `frames: 2`, and `seriesPath: acquisition/synthetic_multichannel_microvolts`.
+- [x] DANDI asset `293b402c-2217-4611-8e68-b66a6b7be3a1` was checked: the S3 redirect supports `Range` (`206 Partial Content`) and CORS (`Access-Control-Allow-Origin: *`).
+- [x] DANDI remote example is intentionally left as TODO because current `NwbSource` fetches the whole URL into an ArrayBuffer before h5wasm open; remote HDF5 range-open is not implemented in this brick.
+
+Milestone 3 fixture verdict: adapter untouched; DANDI URL remains a documented TODO until remote range-open support is added.

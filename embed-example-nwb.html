@@ -27,6 +27,14 @@
         margin: 0 0 16px;
       }
 
+      .note {
+        max-width: 860px;
+        margin: 0 0 16px;
+        color: #43505c;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
       button {
         min-height: 36px;
         border: 1px solid #bac6d3;
@@ -54,9 +62,13 @@
   <body>
     <main class="page">
       <h1>Recorded source embed</h1>
+      <p class="note">
+        The NWB excerpt is a synthetic 24-channel, 6-second TimeSeries generated with PyNWB for browser rendering.
+        It is not a biological recording. A checked DANDI asset is noted in the README as a future remote range-read target.
+      </p>
       <div class="toolbar" aria-label="Recorded source">
         <button type="button" data-example-source="frozen" aria-pressed="false">Frozen JSON</button>
-        <button type="button" data-example-source="nwb" aria-pressed="true">NWB excerpt</button>
+        <button type="button" data-example-source="nwb" aria-pressed="true">Synthetic NWB</button>
       </div>
       <div id="fsk" class="embed-slot"></div>
     </main>
