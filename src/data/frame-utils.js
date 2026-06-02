@@ -1,4 +1,4 @@
-import { SAMPLE_COUNT, SAMPLE_RATE_HZ, SAMPLE_WINDOW_MS } from "../config.js?v=20260601-perf";
+import { SAMPLE_COUNT, SAMPLE_RATE_HZ } from "../config.js?v=20260601-perf";
 import { CHANNEL_COUNT, CHANNELS_PER_MEA, MEA_COUNT } from "../mapping.js?v=20260601-perf";
 
 export function makeSourceMeta({
@@ -151,38 +151,4 @@ export function channelTraceFromFrame(frame, absoluteChannel) {
 
   const start = absoluteChannel * frame.sampleCount;
   return frame.samples.subarray(start, start + frame.sampleCount);
-}
-
-export function makeFrame({ source, meas, timestamp = new Date(), sampleRateHz, sampleWindowMs }) {
-  const rate = sampleRateHz ?? SAMPLE_RATE_HZ;
-  const windowMs = sampleWindowMs ?? SAMPLE_WINDOW_MS;
-  const tEnd = timestamp.getTime();
-  const samples = new Float32Array(CHANNEL_COUNT * SAMPLE_COUNT);
-  const availableChannels = new Uint8Array(CHANNEL_COUNT);
-
-  for (const mea of meas ?? []) {
-    if (!mea || !(mea.data instanceof Float32Array)) continue;
-    const groupIndex = mea.meaId - 1;
-    copyChannelGroupToSamples({ target: samples, source: mea.data, groupIndex });
-    availableChannels.fill(1, groupIndex * CHANNELS_PER_MEA, (groupIndex + 1) * CHANNELS_PER_MEA);
-  }
-
-  return makeSourceFrame({
-    sourceKind: source,
-    tStart: tEnd - windowMs,
-    tEnd,
-    channelCount: CHANNEL_COUNT,
-    sampleCount: SAMPLE_COUNT,
-    sampleRateHz: rate,
-    units: "uV",
-    samples,
-    availableChannels,
-  });
-}
-
-export function cloneMeaSample(mea) {
-  return {
-    meaId: mea.meaId,
-    data: new Float32Array(mea.data),
-  };
 }
