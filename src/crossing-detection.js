@@ -1,4 +1,5 @@
 import { CHANNEL_COUNT } from "./mapping.js?v=20260601-perf";
+import { channelTraceFromFrame } from "./data/frame-utils.js?v=20260601-perf";
 
 const DEFAULT_REFRACTORY_MS = 2;
 
@@ -48,7 +49,7 @@ export function detectThresholdCrossings(trace, options) {
   return crossings;
 }
 
-export function countSpikesByChannel(crossings, channelCount = CHANNEL_COUNT) {
+export function countCrossingsByChannel(crossings, channelCount = CHANNEL_COUNT) {
   const counts = new Uint16Array(channelCount);
   for (const crossing of crossings) {
     if (
@@ -79,20 +80,19 @@ export function summarizeNoiseBand(trace) {
   };
 }
 
-export function detectFrameCrossings(meas, options) {
+export function detectFrameCrossings(frame, options) {
   const crossings = [];
-  for (const mea of meas) {
-    const baseChannel = (mea.meaId - 1) * 32;
-    for (let localIndex = 0; localIndex < 32; localIndex += 1) {
-      const start = localIndex * 4096;
-      const trace = mea.data.subarray(start, start + 4096);
-      crossings.push(
-        ...detectThresholdCrossings(trace, {
-          ...options,
-          absoluteChannel: baseChannel + localIndex,
-        }),
-      );
-    }
+  if (!frame || !Number.isInteger(frame.channelCount)) return crossings;
+
+  for (let absoluteChannel = 0; absoluteChannel < frame.channelCount; absoluteChannel += 1) {
+    const trace = channelTraceFromFrame(frame, absoluteChannel);
+    if (!trace) continue;
+    crossings.push(
+      ...detectThresholdCrossings(trace, {
+        ...options,
+        absoluteChannel,
+      }),
+    );
   }
   return crossings;
 }

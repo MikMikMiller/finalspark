@@ -7,7 +7,7 @@ export const RANGES_UV = [50, 100, 200, 500, 1000, 2000];
 export const RASTER_WINDOW_MS = 12000;
 export const MAX_RASTER_EVENTS = 12000;
 export const TIMELINE_POINTS = 90;
-export const REPLAY_FIXTURE_URL = "data/replay-sample.json";
+export const FROZEN_FIXTURE_URL = "data/replay-sample.json";
 export const LIVE_ENDPOINTS = [
   "wss://livemeaservice.finalspark.com/socket.io/?EIO=4&transport=websocket",
   "wss://livemeaservice2.alpvision.com/socket.io/?EIO=4&transport=websocket",
@@ -15,6 +15,6 @@ export const LIVE_ENDPOINTS = [
 
 export const SOURCE_LABELS = {
   live: "Live",
-  replay: "Replay",
+  frozen: "Frozen",
   demo: "Demo",
 };

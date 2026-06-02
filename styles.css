@@ -1,4 +1,5 @@
-:root {
+:root,
+:host {
   color-scheme: light;
   --ink: #202722;
   --muted: #68717a;
@@ -15,8 +16,29 @@
   font-family: Avenir Next, Aptos, Segoe UI, system-ui, sans-serif;
 }
 
+:host {
+  display: block;
+  background: transparent;
+  color: var(--ink);
+}
+
 * {
   box-sizing: border-box;
+}
+
+.fs-kernel-root {
+  min-width: 0;
+  height: var(--kernel-height, auto);
+  overflow: auto;
+  background: transparent;
+  color: var(--ink);
+  font-family: Avenir Next, Aptos, Segoe UI, system-ui, sans-serif;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(46, 163, 242, 0.18);
+}
+
+[hidden] {
+  display: none !important;
 }
 
 html {
@@ -108,11 +130,6 @@ summary:focus-visible {
   height: auto;
 }
 
-.brand-lockup .topbar-copy {
-  padding-left: 18px;
-  border-left: 1px solid rgba(255, 255, 255, 0.28);
-}
-
 .topbar-copy {
   display: grid;
   gap: 4px;
@@ -186,7 +203,7 @@ h2 {
 
 .control-strip {
   display: grid;
-  grid-template-columns: minmax(200px, 0.5fr) minmax(420px, 1.2fr) auto auto minmax(300px, 0.85fr);
+  grid-template-columns: minmax(180px, 0.55fr) minmax(210px, 0.55fr) minmax(440px, 1.25fr) auto auto minmax(280px, 0.9fr);
   gap: 10px;
   align-items: center;
   margin-bottom: 14px;
@@ -199,18 +216,21 @@ h2 {
   backdrop-filter: blur(12px);
 }
 
-.source-control {
+.source-control,
+.view-control {
   display: grid;
   gap: 6px;
   min-width: 0;
 }
 
-.source-control > span {
+.source-control > span,
+.view-control > span {
   color: rgba(255, 255, 255, 0.76);
   font-size: 12px;
 }
 
-.source-control .source-switch {
+.source-control .source-switch,
+.view-control .source-switch {
   width: 100%;
 }
 
@@ -231,7 +251,7 @@ h2 {
 
 .control-drawer-body {
   display: grid;
-  grid-template-columns: minmax(210px, 1.05fr) minmax(132px, 0.5fr) auto;
+  grid-template-columns: minmax(210px, 1.05fr) minmax(132px, 0.45fr) minmax(96px, 0.35fr) auto;
   gap: 10px;
   align-items: center;
 }
@@ -663,7 +683,7 @@ canvas {
   }
 
   .control-strip {
-    grid-template-columns: minmax(180px, 0.52fr) minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(180px, 0.5fr) minmax(180px, 0.5fr) minmax(0, 1fr) auto auto;
     align-items: stretch;
   }
 
@@ -672,7 +692,7 @@ canvas {
   }
 
   .status-box {
-    grid-column: span 4;
+    grid-column: 1 / -1;
   }
 
   h1 {
@@ -723,6 +743,7 @@ canvas {
   }
 
   .source-control,
+  .view-control,
   .control-drawer,
   .status-box {
     grid-column: 1 / -1;

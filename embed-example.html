@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>fs-kernel embed example</title>
+    <style>
+      body {
+        margin: 0;
+        min-width: 320px;
+        background: #f1f4f8;
+        color: #202722;
+        font-family: Avenir Next, Aptos, Segoe UI, system-ui, sans-serif;
+      }
+
+      .page {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      .embed-slot {
+        min-height: 720px;
+        border: 1px solid #d7dee7;
+        background: #ffffff;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <h1>Frozen source embed</h1>
+      <div id="fsk" class="embed-slot"></div>
+    </main>
+    <script type="module">
+      import { mount } from "./fs-kernel.mjs";
+
+      mount("#fsk", {
+        source: "frozen",
+        src: "data/replay-sample.json",
+        height: 720,
+        view: "overview",
+        window: 12,
+      });
+    </script>
+  </body>
+</html>

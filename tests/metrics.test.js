@@ -3,19 +3,19 @@ import { describe, it } from "node:test";
 
 import {
   computeCenterOfActivity,
-  computeFiringRates,
+  computeCrossingRates,
   computePopulationActivity,
 } from "../src/metrics.js";
 import { channelsForMea } from "../src/mapping.js";
 
 describe("derived activity metrics", () => {
-  it("converts spike counts to per-channel firing rates", () => {
-    const rates = computeFiringRates(Uint16Array.from([0, 2, 4]), 1000);
+  it("converts crossing counts to per-channel rates", () => {
+    const rates = computeCrossingRates(Uint16Array.from([0, 2, 4]), 1000);
 
     assert.deepEqual(Array.from(rates), [0, 2, 4]);
   });
 
-  it("computes center of activity as a spike-count weighted electrode position", () => {
+  it("computes center of activity as a crossing-count weighted electrode position", () => {
     const counts = new Uint16Array(32);
     counts[0] = 1;
     counts[7] = 3;
@@ -26,7 +26,7 @@ describe("derived activity metrics", () => {
       active: true,
       x: 2.25,
       y: 0.75,
-      totalSpikes: 4,
+      totalCrossings: 4,
     });
   });
 
@@ -35,7 +35,7 @@ describe("derived activity metrics", () => {
       active: false,
       x: null,
       y: null,
-      totalSpikes: 0,
+      totalCrossings: 0,
     });
   });
 
@@ -46,7 +46,7 @@ describe("derived activity metrics", () => {
 
     assert.deepEqual(computePopulationActivity(counts, 1092.3), {
       activeChannels: 2,
-      totalSpikes: 3,
+      totalCrossings: 3,
       populationRateHz: 2.746,
       meanChannelRateHz: 0.021,
     });

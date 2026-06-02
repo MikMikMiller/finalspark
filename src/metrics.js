@@ -1,64 +1,64 @@
-export function computeFiringRates(spikeCounts, windowMs) {
+export function computeCrossingRates(crossingCounts, windowMs) {
   if (!Number.isFinite(windowMs) || windowMs <= 0) {
     throw new RangeError("windowMs must be a positive number");
   }
 
   const seconds = windowMs / 1000;
-  return Float32Array.from(spikeCounts, (count) => round(count / seconds, 3));
+  return Float32Array.from(crossingCounts, (count) => round(count / seconds, 3));
 }
 
-export function computeCenterOfActivity(localSpikeCounts, channels) {
+export function computeCenterOfActivity(localCrossingCounts, channels) {
   let weightedX = 0;
   let weightedY = 0;
-  let totalSpikes = 0;
+  let totalCrossings = 0;
 
-  for (let index = 0; index < localSpikeCounts.length; index += 1) {
-    const count = localSpikeCounts[index];
+  for (let index = 0; index < localCrossingCounts.length; index += 1) {
+    const count = localCrossingCounts[index];
     if (count <= 0) continue;
     const channel = channels[index];
     weightedX += channel.x * count;
     weightedY += channel.y * count;
-    totalSpikes += count;
+    totalCrossings += count;
   }
 
-  if (totalSpikes === 0) {
+  if (totalCrossings === 0) {
     return {
       active: false,
       x: null,
       y: null,
-      totalSpikes: 0,
+      totalCrossings: 0,
     };
   }
 
   return {
     active: true,
-    x: round(weightedX / totalSpikes, 3),
-    y: round(weightedY / totalSpikes, 3),
-    totalSpikes,
+    x: round(weightedX / totalCrossings, 3),
+    y: round(weightedY / totalCrossings, 3),
+    totalCrossings,
   };
 }
 
-export function computePopulationActivity(spikeCounts, windowMs) {
+export function computePopulationActivity(crossingCounts, windowMs) {
   const seconds = windowMs / 1000;
   let activeChannels = 0;
-  let totalSpikes = 0;
+  let totalCrossings = 0;
 
-  for (const count of spikeCounts) {
+  for (const count of crossingCounts) {
     if (count > 0) activeChannels += 1;
-    totalSpikes += count;
+    totalCrossings += count;
   }
 
   return {
     activeChannels,
-    totalSpikes,
-    populationRateHz: round(totalSpikes / seconds, 3),
-    meanChannelRateHz: round(totalSpikes / seconds / spikeCounts.length, 3),
+    totalCrossings,
+    populationRateHz: round(totalCrossings / seconds, 3),
+    meanChannelRateHz: round(totalCrossings / seconds / crossingCounts.length, 3),
   };
 }
 
-export function splitCountsByMea(spikeCounts) {
+export function splitCountsByMea(crossingCounts) {
   return [0, 1, 2, 3].map((meaIndex) =>
-    spikeCounts.slice(meaIndex * 32, meaIndex * 32 + 32),
+    crossingCounts.slice(meaIndex * 32, meaIndex * 32 + 32),
   );
 }
 

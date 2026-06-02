@@ -1,41 +1,57 @@
 import { LIVE_ENDPOINTS, SAMPLE_RATE_HZ, SAMPLE_WINDOW_MS } from "../config.js?v=20260601-perf";
+import { CHANNEL_COUNT, CHANNELS_PER_MEA } from "../mapping.js?v=20260601-perf";
 import {
   isEngineOpenPacket,
   isNamespaceConnectedPacket,
   isPingPacket,
   makeMeaSelectionPacket,
 } from "./socketio-protocol.js?v=20260601-perf";
-import { makeFrame } from "./frame-utils.js?v=20260601-perf";
+import {
+  copyChannelGroupToSamples,
+  createLogicalLayout,
+  makeSourceFrame,
+  makeSourceMeta,
+} from "./frame-utils.js?v=20260601-perf";
 
 export class LiveSource {
-  constructor({ endpoints = LIVE_ENDPOINTS } = {}) {
+  constructor({ endpoints = LIVE_ENDPOINTS, meaId = null } = {}) {
     this.endpoints = endpoints;
+    this.meaId = normalizeMeaId(meaId);
     this.sockets = [];
     this.latest = new Map();
     this.stopped = true;
+    this.lastMeta = makeSourceMeta({
+      sourceKind: "live",
+      label: this.meaId ? `Public live stream, MEA ${this.meaId}` : "Public live stream",
+      layout: createLogicalLayout(),
+      sourceProvenance: {
+        publicStreamOnly: true,
+        transport: "Socket.IO websocket, EIO=4",
+      },
+    });
+  }
+
+  meta() {
+    return this.lastMeta;
   }
 
   start(onFrame, onStatus) {
     this.stop();
     this.stopped = false;
     this.latest.clear();
-    onStatus?.({ level: "info", message: "Opening four public stream sockets." });
+    const meaIndexes = this.meaId ? [this.meaId - 1] : [0, 1, 2, 3];
+    onStatus?.({
+      level: "info",
+      message: this.meaId ? `Opening public stream socket for MEA ${this.meaId}.` : "Opening four public stream sockets.",
+    });
 
-    for (let meaIndex = 0; meaIndex < 4; meaIndex += 1) {
+    for (const meaIndex of meaIndexes) {
       const socket = new LiveMeaSocket({
         meaIndex,
         endpoints: this.endpoints,
         onSample: (sample) => {
           this.latest.set(sample.meaId, sample);
-          onFrame(
-            makeFrame({
-              source: "live",
-              timestamp: new Date(),
-              sampleRateHz: SAMPLE_RATE_HZ,
-              sampleWindowMs: SAMPLE_WINDOW_MS,
-              meas: Array.from(this.latest.values()),
-            }),
-          );
+          onFrame(this.makeFrame());
         },
         onStatus,
       });
@@ -51,6 +67,43 @@ export class LiveSource {
     }
     this.sockets = [];
   }
+
+  makeFrame() {
+    const tEnd = Date.now();
+    const samples = new Float32Array(CHANNEL_COUNT * 4096);
+    const availableChannels = new Uint8Array(CHANNEL_COUNT);
+
+    for (const sample of this.latest.values()) {
+      const groupIndex = sample.meaId - 1;
+      copyChannelGroupToSamples({
+        target: samples,
+        source: sample.data,
+        groupIndex,
+        groupSize: CHANNELS_PER_MEA,
+      });
+      availableChannels.fill(1, groupIndex * CHANNELS_PER_MEA, (groupIndex + 1) * CHANNELS_PER_MEA);
+    }
+
+    return makeSourceFrame({
+      sourceKind: "live",
+      tStart: tEnd - SAMPLE_WINDOW_MS,
+      tEnd,
+      channelCount: CHANNEL_COUNT,
+      sampleCount: 4096,
+      sampleRateHz: SAMPLE_RATE_HZ,
+      units: this.lastMeta.units,
+      samples,
+      availableChannels,
+      meta: this.lastMeta,
+    });
+  }
+}
+
+function normalizeMeaId(meaId) {
+  if (meaId === null || meaId === undefined || meaId === "" || meaId === "all") return null;
+  const value = Number(meaId);
+  if (!Number.isInteger(value) || value < 1 || value > 4) return null;
+  return value;
 }
 
 class LiveMeaSocket {

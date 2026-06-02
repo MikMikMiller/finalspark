@@ -82,5 +82,5 @@ function drawCenterPanel(ctx, x0, y0, width, height, meaId, center) {
   ctx.lineWidth = 2;
   ctx.stroke();
   ctx.fillStyle = "#202722";
-  ctx.fillText(width < 118 ? String(center.totalSpikes) : `${center.totalSpikes} crossings`, x0 + 8, y0 + height - 10);
+  ctx.fillText(width < 118 ? String(center.totalCrossings) : `${center.totalCrossings} crossings`, x0 + 8, y0 + height - 10);
 }

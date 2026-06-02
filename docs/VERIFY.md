@@ -4,7 +4,7 @@ This verification was completed before writing application code.
 
 ## Source Repositories
 
-Temporary clones were read under `/tmp` and were not copied into this repo.
+Temporary clones were read outside this repo and were not copied into this repo.
 
 | Source | Observed facts |
 | --- | --- |
@@ -57,7 +57,7 @@ The official UI exposes trace ranges `+/-50`, `+/-100`, `+/-200`, `+/-500`, `+/-
 
 The verified sample window is `4096` samples over `1092.3 ms`, or about `3749.9 Hz`.
 
-## Replay Fixture
+## Frozen Fixture
 
 `data/replay-sample.json` contains one real frame per MEA captured from the public service on `2026-05-31T20:21:13.222Z`.
 
@@ -68,7 +68,7 @@ The verified sample window is `4096` samples over `1092.3 ms`, or about `3749.9 
 | 3 | 524288 | 131072 | -1547.217 | 1062.203 | 85.151 |
 | 4 | 524288 | 131072 | -124.580 | 118.237 | 18.055 |
 
-The replay file stores each MEA as base64 little-endian `Float32Array` data. It is loaded locally by `ReplaySource`, so replay mode works without contacting the live service.
+The frozen file stores each MEA as base64 little-endian `Float32Array` data. It is loaded locally by `FrozenSource`, so frozen mode works without contacting the live service.
 
 ## Center Of Activity
 
@@ -83,4 +83,3 @@ The public live page and LiveMEA access code are open without authentication. Th
 - No polling loop after subscription.
 - Reconnect backoff up to 30 seconds.
 - Websockets are closed when leaving live mode.
-

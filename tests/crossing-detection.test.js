@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  countSpikesByChannel,
+  countCrossingsByChannel,
   detectThresholdCrossings,
   summarizeNoiseBand,
-} from "../src/spike-detection.js";
+} from "../src/crossing-detection.js";
 
-describe("threshold crossing spike detection", () => {
+describe("threshold crossing detection", () => {
   it("detects signed threshold crossings with a refractory gap", () => {
     const trace = new Float32Array([0, 2, 6, 7, 3, -6, -7, -1, 8]);
     const crossings = detectThresholdCrossings(trace, {
@@ -43,7 +43,7 @@ describe("threshold crossing spike detection", () => {
   });
 
   it("counts crossings by absolute channel", () => {
-    const counts = countSpikesByChannel([
+    const counts = countCrossingsByChannel([
       { absoluteChannel: 0 },
       { absoluteChannel: 0 },
       { absoluteChannel: 127 },
