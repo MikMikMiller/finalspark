@@ -63,12 +63,13 @@
     <main class="page">
       <h1>Recorded source embed</h1>
       <p class="note">
-        The NWB excerpt is a synthetic 24-channel, 6-second TimeSeries generated with PyNWB for browser rendering.
-        It is not a biological recording. A checked DANDI asset is noted in the README as a future remote range-read target.
+        The local NWB excerpt is a synthetic 24-channel, 6-second TimeSeries generated with PyNWB.
+        The remote option opens a checked open-access DANDI NWB asset through worker-backed range reads.
       </p>
       <div class="toolbar" aria-label="Recorded source">
         <button type="button" data-example-source="frozen" aria-pressed="false">Frozen JSON</button>
         <button type="button" data-example-source="nwb" aria-pressed="true">Synthetic NWB</button>
+        <button type="button" data-example-source="nwb-url" aria-pressed="false">DANDI NWB URL</button>
       </div>
       <div id="fsk" class="embed-slot"></div>
     </main>
@@ -83,6 +84,10 @@
         nwb: {
           source: "nwb",
           src: "data/nwb-excerpt.nwb",
+        },
+        "nwb-url": {
+          source: "nwb-url",
+          src: "https://api.dandiarchive.org/api/assets/11646673-ac9a-42a0-b768-470af79ff4bc/download/?content_disposition=inline",
         },
       };
 

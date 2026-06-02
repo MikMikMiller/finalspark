@@ -1,6 +1,6 @@
-import { NWB_FIXTURE_URL } from "../config.js?v=20260602-nwb";
+import { NWB_FIXTURE_URL } from "../config.js?v=20260602-nwb-url-default";
 import { cloneSourceFrame, makeSourceMeta } from "./frame-utils.js?v=20260601-perf";
-import { readNwbPayload } from "./nwb-codec.js?v=20260602-nwb";
+import { readNwbPayload } from "./nwb-codec.js?v=20260602-nwb-url-default";
 
 const H5WASM_ESM_URL = "https://cdn.jsdelivr.net/npm/h5wasm@0.10.2/dist/esm/hdf5_hl.js";
 

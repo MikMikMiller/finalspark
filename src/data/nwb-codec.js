@@ -1,4 +1,4 @@
-import { SAMPLE_COUNT } from "../config.js?v=20260602-nwb";
+import { SAMPLE_COUNT } from "../config.js?v=20260602-nwb-url-default";
 import {
   createLogicalLayout,
   makeSourceFrame,
@@ -12,17 +12,19 @@ export function normalizeNwbTimeSeries({
   neurodataType = null,
   data,
   shape,
+  storageOrder = null,
   sampleRateHz,
   startingTimeSeconds = null,
   units = "uV",
   frameSampleCount = SAMPLE_COUNT,
+  sourceKind = SOURCE_KIND,
   sourceProvenance = {},
 }) {
   if (!Number.isFinite(sampleRateHz) || sampleRateHz <= 0) {
     throw new TypeError("NWB TimeSeries must expose a finite positive starting_time rate");
   }
 
-  const converted = toChannelMajorSamples({ data, shape });
+  const converted = toChannelMajorSamples({ data, shape, storageOrder });
   const samplesPerFrame = normalizeFrameSampleCount(frameSampleCount, converted.sampleCount);
   const sampleWindowMs = (samplesPerFrame / sampleRateHz) * 1000;
   const provenance = {
@@ -33,8 +35,8 @@ export function normalizeNwbTimeSeries({
     recordingStartSeconds: Number.isFinite(startingTimeSeconds) ? startingTimeSeconds : null,
   };
   const meta = makeSourceMeta({
-    sourceKind: SOURCE_KIND,
-    label: `NWB ${path}`,
+    sourceKind,
+    label: `${sourceKind === SOURCE_KIND ? "NWB" : "Remote NWB"} ${path}`,
     channelCount: converted.channelCount,
     sampleRateHz,
     sampleCount: samplesPerFrame,
@@ -59,11 +61,12 @@ export function normalizeNwbTimeSeries({
       sampleRateHz,
       units,
       meta,
+      sourceKind,
     }),
   };
 }
 
-export function toChannelMajorSamples({ data, shape }) {
+export function toChannelMajorSamples({ data, shape, storageOrder = null }) {
   const dimensions = Array.from(shape ?? []);
   const values = toFloat32Array(data);
   if (dimensions.length === 1) {
@@ -83,6 +86,18 @@ export function toChannelMajorSamples({ data, shape }) {
   const [first, second] = dimensions;
   if (values.length < first * second) throw new RangeError("NWB data length is shorter than its shape");
 
+  if (storageOrder === "time-major") {
+    return timeMajorToChannelMajor(values, first, second);
+  }
+
+  if (storageOrder === "channel-major") {
+    return {
+      channelCount: first,
+      sampleCount: second,
+      samples: values.slice(0, first * second),
+    };
+  }
+
   if (first >= second) {
     return timeMajorToChannelMajor(values, first, second);
   }
@@ -96,23 +111,33 @@ export function toChannelMajorSamples({ data, shape }) {
 
 export function readNwbPayload(file, {
   frameSampleCount = SAMPLE_COUNT,
+  maxDurationSeconds = null,
+  maxSampleCount = null,
+  sourceKind = SOURCE_KIND,
   sourceProvenance = {},
 } = {}) {
   const series = findFirstReadableSeries(file);
   const data = series.group.get("data");
-  const startingTime = series.group.get("starting_time");
-  const rate = readAttributeValue(startingTime, "rate");
-  const startingTimeValue = readDatasetValue(startingTime);
+  const timing = readSeriesTiming(series.group);
+  const excerpt = readTimeSeriesExcerpt(data, {
+    maxSampleCount: resolveMaxSampleCount({
+      sampleRateHz: timing.sampleRateHz,
+      maxDurationSeconds,
+      maxSampleCount,
+    }),
+  });
 
   return normalizeNwbTimeSeries({
     path: series.path,
     neurodataType: readAttributeValue(series.group, "neurodata_type"),
-    data: readDatasetValue(data),
-    shape: data.shape,
-    sampleRateHz: Number(rate),
-    startingTimeSeconds: Number(firstScalar(startingTimeValue)),
+    data: excerpt.data,
+    shape: excerpt.shape,
+    storageOrder: excerpt.storageOrder,
+    sampleRateHz: timing.sampleRateHz,
+    startingTimeSeconds: timing.startingTimeSeconds,
     units: String(readAttributeValue(data, "unit") ?? "uV"),
     frameSampleCount,
+    sourceKind,
     sourceProvenance: {
       ...sourceProvenance,
       conversion: numericOrNull(readAttributeValue(data, "conversion")),
@@ -128,6 +153,7 @@ function buildFrames({
   sampleRateHz,
   units,
   meta,
+  sourceKind = SOURCE_KIND,
 }) {
   const frames = [];
   for (let offset = 0; offset < sampleCount; offset += samplesPerFrame) {
@@ -142,7 +168,7 @@ function buildFrames({
     const tStart = (offset / sampleRateHz) * 1000;
     const tEnd = ((offset + chunkSampleCount) / sampleRateHz) * 1000;
     frames.push(makeSourceFrame({
-      sourceKind: SOURCE_KIND,
+      sourceKind,
       tStart,
       tEnd,
       channelCount,
@@ -154,6 +180,59 @@ function buildFrames({
     }));
   }
   return frames;
+}
+
+function readTimeSeriesExcerpt(dataset, { maxSampleCount = null } = {}) {
+  const dimensions = Array.from(dataset.shape ?? []);
+  if (!maxSampleCount) {
+    return {
+      data: readDatasetValue(dataset),
+      shape: dimensions,
+      storageOrder: null,
+    };
+  }
+
+  if (dimensions.length === 1) {
+    const sampleCount = Math.min(dimensions[0], maxSampleCount);
+    return {
+      data: readDatasetSlice(dataset, [[0, sampleCount]]),
+      shape: [sampleCount],
+      storageOrder: null,
+    };
+  }
+
+  if (dimensions.length !== 2) {
+    throw new RangeError("Only one- and two-dimensional NWB TimeSeries data is supported");
+  }
+
+  const [first, second] = dimensions;
+  if (first >= second) {
+    const sampleCount = Math.min(first, maxSampleCount);
+    return {
+      data: readDatasetSlice(dataset, [[0, sampleCount], []]),
+      shape: [sampleCount, second],
+      storageOrder: "time-major",
+    };
+  }
+
+  const sampleCount = Math.min(second, maxSampleCount);
+  return {
+    data: readDatasetSlice(dataset, [[], [0, sampleCount]]),
+    shape: [first, sampleCount],
+    storageOrder: "channel-major",
+  };
+}
+
+function resolveMaxSampleCount({ sampleRateHz, maxDurationSeconds, maxSampleCount }) {
+  const explicit = Math.floor(Number(maxSampleCount));
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+
+  const duration = Number(maxDurationSeconds);
+  if (!Number.isFinite(duration) || duration <= 0) return null;
+  if (!Number.isFinite(sampleRateHz) || sampleRateHz <= 0) {
+    throw new TypeError("NWB TimeSeries must expose a finite positive sample rate");
+  }
+  return Math.max(1, Math.floor(sampleRateHz * duration));
 }
 
 function timeMajorToChannelMajor(values, sampleCount, channelCount) {
@@ -180,25 +259,121 @@ function toFloat32Array(data) {
 }
 
 function findFirstReadableSeries(file) {
-  const acquisition = file.get("acquisition");
-  for (const name of acquisition.keys()) {
-    const path = `acquisition/${name}`;
-    const group = file.get(path);
-    if (hasTimeSeriesData(group)) return { path, group };
+  const candidates = findReadableSeriesCandidates(file);
+  const best = candidates.sort(compareSeriesCandidates)[0];
+  if (best) return best;
+  throw new Error("No readable NWB TimeSeries with data and timing information was found");
+}
+
+function findReadableSeriesCandidates(file) {
+  const roots = ["acquisition", "processing"];
+  const candidates = [];
+  for (const root of roots) {
+    const group = safeGet(file, root);
+    if (!group || typeof group.keys !== "function") continue;
+    collectReadableSeries(file, root, group, candidates, 0);
   }
-  throw new Error("No readable NWB acquisition TimeSeries with data and starting_time was found");
+  return candidates;
+}
+
+function collectReadableSeries(file, path, group, candidates, depth) {
+  if (hasTimeSeriesData(group)) {
+    candidates.push({ path, group });
+    return;
+  }
+  if (depth >= 5 || !group || typeof group.keys !== "function") return;
+  for (const name of group.keys()) {
+    const childPath = `${path}/${name}`;
+    const child = safeGet(file, childPath);
+    if (child && typeof child.keys === "function") {
+      collectReadableSeries(file, childPath, child, candidates, depth + 1);
+    }
+  }
+}
+
+function compareSeriesCandidates(left, right) {
+  return scoreSeriesCandidate(right) - scoreSeriesCandidate(left);
+}
+
+function scoreSeriesCandidate(candidate) {
+  const neurodataType = String(readAttributeValue(candidate.group, "neurodata_type") ?? "");
+  const data = candidate.group.get("data");
+  const dimensions = Array.from(data?.shape ?? []);
+  const channelCount = estimateChannelCount(dimensions);
+  let score = 0;
+  if (neurodataType === "ElectricalSeries") score += 1000;
+  if (dimensions.length === 2) score += 200;
+  if (candidate.path.startsWith("processing/")) score += 25;
+  score += Math.min(channelCount, 128);
+  return score;
+}
+
+function estimateChannelCount(dimensions) {
+  if (dimensions.length === 1) return 1;
+  if (dimensions.length !== 2) return 0;
+  const [first, second] = dimensions;
+  return Math.max(1, Math.min(first, second));
 }
 
 function hasTimeSeriesData(group) {
   if (!group || typeof group.keys !== "function") return false;
   const keys = new Set(group.keys());
-  return keys.has("data") && keys.has("starting_time");
+  return keys.has("data") && (keys.has("starting_time") || keys.has("timestamps"));
+}
+
+function readSeriesTiming(group) {
+  const keys = new Set(group.keys());
+  if (keys.has("starting_time")) return readStartingTimeTiming(group.get("starting_time"));
+  if (keys.has("timestamps")) return readTimestampTiming(group.get("timestamps"));
+  throw new TypeError("NWB TimeSeries must expose starting_time or timestamps");
+}
+
+function readStartingTimeTiming(startingTime) {
+  const sampleRateHz = Number(readAttributeValue(startingTime, "rate"));
+  return {
+    sampleRateHz,
+    startingTimeSeconds: Number(firstScalar(readDatasetValue(startingTime))),
+  };
+}
+
+function readTimestampTiming(timestamps) {
+  const dimensions = Array.from(timestamps?.shape ?? []);
+  const timestampCount = Math.floor(Number(dimensions[0]));
+  if (!Number.isFinite(timestampCount) || timestampCount < 2) {
+    throw new TypeError("NWB timestamps must contain at least two values to derive a sample rate");
+  }
+
+  const sample = Array.from(readDatasetSlice(timestamps, [[0, Math.min(timestampCount, 3)]]), Number);
+  const first = sample[0];
+  for (let index = 1; index < sample.length; index += 1) {
+    const delta = (sample[index] - first) / index;
+    if (Number.isFinite(delta) && delta > 0) {
+      return {
+        sampleRateHz: 1 / delta,
+        startingTimeSeconds: first,
+      };
+    }
+  }
+  throw new TypeError("NWB timestamps must be increasing to derive a sample rate");
+}
+
+function safeGet(file, path) {
+  try {
+    return file.get(path);
+  } catch {
+    return null;
+  }
 }
 
 function readDatasetValue(dataset) {
   if (dataset?.value !== undefined) return dataset.value;
   if (typeof dataset?.to_array === "function") return dataset.to_array();
   throw new TypeError("NWB dataset value is not readable");
+}
+
+function readDatasetSlice(dataset, ranges) {
+  if (typeof dataset?.slice === "function") return dataset.slice(ranges);
+  return readDatasetValue(dataset);
 }
 
 function readAttributeValue(object, name) {

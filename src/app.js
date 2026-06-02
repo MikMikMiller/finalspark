@@ -8,7 +8,7 @@ import {
   SAMPLE_WINDOW_MS,
   SOURCE_LABELS,
   TIMELINE_POINTS,
-} from "./config.js?v=20260602-nwb";
+} from "./config.js?v=20260602-nwb-url-default";
 import { DemoSource } from "./data/demo-source.js?v=20260601-perf";
 import { FrozenSource } from "./data/frozen-source.js?v=20260601-perf";
 import { LiveSource } from "./data/live-source.js?v=20260601-perf";
@@ -29,8 +29,12 @@ const SOURCE_FACTORIES = {
   live: (options) => new LiveSource({ meaId: options.meaId }),
   frozen: (options) => new FrozenSource({ src: options.src, loop: options.loop, positionMs: options.positionMs }),
   nwb: async (options) => {
-    const { NwbSource } = await import("./data/nwb-source.js?v=20260602-nwb");
+    const { NwbSource } = await import("./data/nwb-source.js?v=20260602-nwb-url-default");
     return new NwbSource({ src: options.src, loop: options.loop, positionMs: options.positionMs });
+  },
+  "nwb-url": async (options) => {
+    const { NwbUrlSource } = await import("./data/nwb-url-source.js?v=20260602-nwb-url-default");
+    return new NwbUrlSource({ src: options.src, loop: options.loop, positionMs: options.positionMs });
   },
   demo: () => new DemoSource(),
 };
@@ -445,7 +449,7 @@ export class App {
     this.selectedTraceChannel = findMostActiveChannel(this.counts, frame);
     this.updateStats();
     this.updateFreshness(computePopulationActivity(this.counts, frame.sampleWindowMs));
-    if (this.sourceName === "frozen" || this.sourceName === "nwb") this.updateUrlState();
+    if (isRecordedSource(this.sourceName)) this.updateUrlState();
     this.render();
   }
 
@@ -581,7 +585,7 @@ export class App {
     params.set("threshold", String(this.thresholdUv));
     params.set("range", String(this.rangeUv));
     params.set("labels", this.useAbsoluteIndex ? "absolute" : "local");
-    if (this.sourceName === "frozen" || this.sourceName === "nwb") {
+    if (isRecordedSource(this.sourceName)) {
       if (this.sourceSrc) params.set("src", this.sourceSrc);
       if (this.frame) params.set("position", String(Math.max(0, Math.round(this.frame.tEnd))));
     } else {
@@ -620,6 +624,10 @@ function normalizeSourceName(source) {
   if (!source) return null;
   const normalized = SOURCE_ALIASES[source] ?? source;
   return SOURCE_NAMES.has(normalized) ? normalized : null;
+}
+
+function isRecordedSource(sourceName) {
+  return sourceName === "frozen" || sourceName === "nwb" || sourceName === "nwb-url";
 }
 
 function normalizeViewName(view) {

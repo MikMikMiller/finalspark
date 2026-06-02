@@ -10,7 +10,7 @@ export function createKernelMarkup({ stylesheetHref, height } = {}) {
           <div class="topbar-copy">
             <h1>Embeddable Time-Series Kernel</h1>
             <p class="lede">
-              A zero-build read-only signal viewer with live, frozen, NWB, and demo source adapters.
+              A zero-build read-only signal viewer with live, frozen, local NWB, remote NWB, and demo source adapters.
             </p>
           </div>
         </div>
@@ -24,6 +24,7 @@ export function createKernelMarkup({ stylesheetHref, height } = {}) {
               <button type="button" data-source="live" class="is-active" aria-pressed="true">Live</button>
               <button type="button" data-source="frozen" aria-pressed="false">Frozen</button>
               <button type="button" data-source="nwb" aria-pressed="false">NWB</button>
+              <button type="button" data-source="nwb-url" aria-pressed="false">NWB URL</button>
               <button type="button" data-source="demo" aria-pressed="false">Demo</button>
             </div>
           </div>

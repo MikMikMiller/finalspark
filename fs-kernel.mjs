@@ -1,5 +1,5 @@
-import { App } from "./src/app.js?v=20260602-nwb";
-import { createKernelMarkup } from "./src/embed-template.js?v=20260602-nwb";
+import { App } from "./src/app.js?v=20260602-nwb-url-default";
+import { createKernelMarkup } from "./src/embed-template.js?v=20260602-nwb-url";
 
 const mounted = new WeakMap();
 

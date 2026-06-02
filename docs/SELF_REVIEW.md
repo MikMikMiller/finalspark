@@ -59,10 +59,10 @@ Run date: 2026-06-02.
 - [x] `NwbSource` implements the same source adapter surface as live/frozen/demo: `meta()`, `start(onFrame, onStatus)`, `stop()`, and recorded-source `seek(t)`.
 - [x] NWB parsing lives in `src/data/nwb-codec.js` and `src/data/nwb-source.js`; h5wasm is imported lazily only when `source: "nwb"` is selected.
 - [x] `mount("#fsk", { source: "nwb", src: "data/nwb-excerpt.nwb" })` uses the existing public mount contract.
-- [x] The bundled fixture is a 41 KB NWB/HDF5 excerpt from DANDI asset `293b402c-2217-4611-8e68-b66a6b7be3a1`, not the full 19 MB source file.
+- [x] Superseded local-fixture note: the first bundled fixture was replaced by the synthetic multichannel file described below.
 - [x] README describes NWB as read-only excerpt playback and keeps LSL, DANDI browsing/search, and NWB writing as not included.
-- [x] `npm test` passed with `28` tests.
-- [x] h5wasm readback of `data/nwb-excerpt.nwb` returned `sourceKind: "nwb"`, `channelCount: 1`, `sampleRateHz: 200000`, `frames: 2`.
+- [x] Superseded first-fixture run: `npm test` passed with `28` tests.
+- [x] Superseded first-fixture h5wasm readback is no longer the current fixture proof; the current bundled fixture is the synthetic 24-channel file described below.
 - [x] Browser verification passed for `source=nwb` at 390 px mobile width with `docWidth: 390`, `rootOverflow: 0`, and `bodyOverflow: 0`.
 - [x] `embed-example-nwb.html` loaded NWB in one mount point and switched the same mount point back to frozen JSON.
 
@@ -73,12 +73,25 @@ Fork B verdict: passed. Core and adapter contract were not changed; NWB was adde
 Run date: 2026-06-02.
 
 - [x] `src/kernel/time-series-core.js` stayed unchanged.
-- [x] `src/data/nwb-source.js` stayed unchanged; the multichannel fixture is read through the existing `NwbSource`.
-- [x] `src/data/nwb-codec.js` stayed unchanged; its existing 2D `time x channels` path reads the generated PyNWB TimeSeries.
+- [x] `src/data/nwb-source.js` behavior stayed unchanged; the multichannel fixture is read through the existing local `NwbSource`.
+- [x] `src/data/nwb-codec.js` still reads the generated PyNWB TimeSeries and now also supports bounded `Dataset.slice()` reads for remote excerpts.
 - [x] `data/nwb-excerpt.nwb` is now a synthetic 24-channel, 6-second, 1000 Hz TimeSeries with `unit: microvolts`.
 - [x] `tools/make-nwb-fixture.py` regenerates the fixture with PyNWB and labels it as synthetic, not biological.
 - [x] h5wasm readback returned `sourceKind: "nwb"`, `channelCount: 24`, `sampleRateHz: 1000`, `frames: 2`, and `seriesPath: acquisition/synthetic_multichannel_microvolts`.
-- [x] DANDI asset `293b402c-2217-4611-8e68-b66a6b7be3a1` was checked: the S3 redirect supports `Range` (`206 Partial Content`) and CORS (`Access-Control-Allow-Origin: *`).
-- [x] DANDI remote example is intentionally left as TODO because current `NwbSource` fetches the whole URL into an ArrayBuffer before h5wasm open; remote HDF5 range-open is not implemented in this brick.
+- [x] Early single-series DANDI range/CORS exploration was superseded by the current remote multichannel proof recorded in the next section.
+- [x] Remote DANDI playback is implemented as separate `source: "nwb-url"`; local `source: "nwb"` remains the full-buffer path for bundled excerpts and browser files.
 
-Milestone 3 fixture verdict: adapter untouched; DANDI URL remains a documented TODO until remote range-open support is added.
+Milestone 3 fixture verdict: local adapter behavior stayed intact; remote URL support lives in a separate source adapter.
+
+## Remote NWB URL Adapter Review
+
+Run date: 2026-06-02.
+
+- [x] `src/kernel/time-series-core.js` stayed unchanged and contains no NWB, DANDI, h5wasm, FinalSpark, Socket.IO, or MEA terms.
+- [x] `source: "nwb-url"` is isolated in `src/data/nwb-url-source.js` and `src/data/nwb-url-worker.js`.
+- [x] DANDI API asset download URLs are resolved to the bare object-store `contentUrl` before h5wasm lazy-file open, because the signed API redirect does not work for h5wasm `HEAD`.
+- [x] Browser worker proof loaded DANDI asset `11646673-ac9a-42a0-b768-470af79ff4bc` from dandiset `000021` and rendered `NWB URL`, `96/96 channels`, `sampleRate: 1250.0 Hz`, with status `Remote NWB source is running from byte ranges.`
+- [x] The selected real-file series was `acquisition/probe_729445654_lfp/probe_729445654_lfp_data`, an `ElectricalSeries` with shape `[12081218, 96]`; the reader derives the sample rate from regular `timestamps` when `starting_time.rate` is absent.
+- [x] The same S3 object returned `206 Partial Content`, `Accept-Ranges: bytes`, and `Content-Range: bytes 0-1023/71781159` for a range probe.
+- [x] h5wasm `FS.createLazyFile()` needed a worker-local `Accept-Ranges: bytes` header shim because S3 CORS does not expose that header, even though a prior `Range` probe returns `206 Partial Content`.
+- [x] `npm test` passed with `37` tests.
